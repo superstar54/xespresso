@@ -80,4 +80,4 @@ calc.read_results()
 calc.calc_pdos()
 calc.plot_pdos(total = True)
 ````
-<img src="examples/figs/al-pdos.png" width="200"/>
+<img src="examples/figs/al-pdos.png" width="500"/>
