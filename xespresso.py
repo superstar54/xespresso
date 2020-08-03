@@ -8,7 +8,7 @@ Run pw.x jobs.
 
 import warnings
 from ase import io
-from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
+from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent, CalculationFailed
 from ase.calculators.espresso import Espresso
 import os
 import numpy as np
@@ -112,6 +112,9 @@ class XEspresso(Espresso):
         if 'input_data' in kwargs:
             # if 'prefix' not in kwargs['input_data']:
             kwargs['input_data']['prefix'] = self.prefix
+        self.directory = './' + label[0:-len(self.prefix)]
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         self.set_queue('pw', queue)
         self.scf_directory = None
         self.scf_parameters = None
@@ -123,12 +126,10 @@ class XEspresso(Espresso):
             command = command.replace('PACKAGE', package)
         if 'PREFIX' in command:
             command = command.replace('PREFIX', self.prefix)
+        print('Command: {0}'.format(command))
         if queue:
-            directory = './' + self.label[0:-len(self.prefix)]
-            if not os.path.exists(directory):
-                os.makedirs(directory)
             # Write the job file
-            with open('%s.job_file' % directory, 'w') as fh:
+            with open('%s/.job_file' % self.directory, 'w') as fh:
                 fh.writelines("#!/bin/bash\n")
                 fh.writelines("#SBATCH --job-name=%s \n" % self.prefix)
                 fh.writelines("#SBATCH --output=%s.out\n" % self.prefix)
@@ -143,6 +144,7 @@ class XEspresso(Espresso):
             self.command = "sbatch {0}".format('.job_file')
         else:
             self.command = command
+        print('Command: {0}'.format(self.command))
     def read_results(self):
         output = io.read(self.label + '.pwo')
         self.calc = output.calc
@@ -177,7 +179,7 @@ class XEspresso(Espresso):
         errfile = self.label + '.err'
         if not os.path.exists(errfile):
             return converged, fromfile, 'NO OUTPUT'
-        errs = ['RESTART', 'pw.x', 'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION']
+        errs = ['RESTART', 'pw.x', 'out-of-memory', 'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION']
         with open(errfile, 'r') as f:
             lines = f.readlines()
             # print(line)
@@ -371,50 +373,3 @@ class XEspresso(Espresso):
         wf = np.average(axy[ind]) - ef
         print('min: %s, max: %s'%(pos, pos + 3))
         print('The workfunction is {0:1.2f} eV'.format(wf))
-
-
-
-
-#====================================================
-# tools
-def summary(updates = [], prefix = 'datas'):
-    datas = {}
-    calc = Espresso()
-    print('Reading.....')
-    for update in updates:
-        cwd = os.getcwd()
-        for i,j,y in os.walk(update):
-            output = is_espresso(i)
-            if output:
-                os.chdir(i)
-                print('dire:', i)
-                calc.directory = cwd + '/' + i
-                calc.prefix = output[0:-4]
-                try:
-                    calc.results = {}
-                    calc.read_results()
-                    t = calc.get_time()
-                    calc.results['time'] = t
-                    datas[i] = calc.results
-                except Exception as e:
-                    print('='*30, '\n', i, e)
-            os.chdir(cwd)
-    with open('%s.pickle' % prefix, 'wb') as f:
-        pickle.dump(datas, f)
-    print('Finished')
-
-def is_espresso(path):
-    '''
-    check espresso 
-    '''
-    dirs = os.listdir(path)
-    # print(dirs)
-    # flag = True
-    for qefile in ['.pwo']:
-        flag = False
-        for file in dirs:
-            if qefile in file:
-                return file
-        if not flag:
-            return False
-    # return flag

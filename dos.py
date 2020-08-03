@@ -4,12 +4,13 @@ from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.parallel import world
 from ase.utils.cext import cextension
 import matplotlib.pyplot as plt
+from xespresso import XEspresso
 
 lspins = ['up', 'dw']
 orbitals = ['s', 'p', 'd', 'f']
 
 class DOS:
-    def __init__(self, calc, dos = True, pdos = False, width=0.1, 
+    def __init__(self, calc = None, label = None, dos = True, pdos = False, width=0.1, 
                  Emin = -10, Emax = 5, npts=401):
         """Electronic Density Of States object.
 
@@ -25,6 +26,11 @@ class DOS:
             Number of points.
 
         """
+        if not calc and not label:
+            raise ValueError('Please give one of them: calc or label')
+        if label:
+            calc = XEspresso(label = label)
+        calc.read_results()
         self.directory = calc.directory
         self.label = calc.label
         self.prefix = calc.prefix
@@ -49,32 +55,31 @@ class DOS:
     def read_pdos_info(self, ):
         import re
         reg = re.compile('\w+')
-        species = []
+        kinds = []
         pdos_info = {}
         with open(self.directory+'/%s-projwfc.out' % self.prefix, 'r') as f:
             lines = f.readlines()
             for line in lines:
                 if 'state #' in line:
                     data = reg.findall(line)
-                    istate = int(data[3])
                     iatom = int(data[3])
-                    label = data[4]
-                    ichannel = int(data[6])
+                    kind = data[4]
+                    istate = int(data[6])
                     l = int(data[8])
                     m = int(data[10])
-                    # print(iatom, label, ichannel, l, m)
-                    if label not in species:
-                        species.append(label)
-                        pdos_info[label] = {}
-                        pdos_info[label]['iatom'] = []
-                        pdos_info[label]['ichannel'] = {}
-                        # pdos_info[label]['orbital'] = []
-                    if iatom not in pdos_info[label]['iatom']:
-                        pdos_info[label]['iatom'].append(iatom)
-                    if ichannel not in pdos_info[label]['ichannel']:
-                        pdos_info[label]['ichannel'][ichannel] = l
-                        # pdos_info[label]['orbital'].append(orbitals[l])
-        self.species = species
+                    # print(iatom, kind, istate, l, m)
+                    if kind not in kinds:
+                        kinds.append(kind)
+                        pdos_info[kind] = {}
+                        pdos_info[kind]['iatom'] = []
+                        pdos_info[kind]['istate'] = {}
+                        # pdos_info[kind]['orbital'] = []
+                    if iatom not in pdos_info[kind]['iatom']:
+                        pdos_info[kind]['iatom'].append(iatom)
+                    if istate not in pdos_info[kind]['istate']:
+                        pdos_info[kind]['istate'][istate] = l
+                        # pdos_info[kind]['orbital'].append(orbitals[l])
+        self.kinds = kinds
         self.pdos_info = pdos_info
 
     def read_pdos(self):
@@ -89,38 +94,54 @@ class DOS:
         npoints = len(self.pdos_energies)
         # read in projections onto atomic orbitals
         self.natoms = len(self.atoms)
-        self.nspecies = len(self.species)
+        self.nkinds = len(self.kinds)
         self.pdos = []
-        self.pdos_atom = {}
-        self.pdos_species = {}
-        for species, info in self.pdos_info.items():
-            pdos_species = {}
-            for ichannel, l in info['ichannel'].items():
+        self.pdos_atom = []
+        self.pdos_kinds = {}
+        for kinds, info in self.pdos_info.items():
+            pdos_kinds = {}
+            for istate, l in info['istate'].items():
                 ncomponents = (2*l+1) * self.nspins + 1
                 # print(ncomponents)
-                channel = '{0}{1}'.format(ichannel, orbitals[l])
-                pdos_species[channel] = np.zeros((ncomponents, npoints), np.float)
+                channel = '{0}{1}'.format(istate, orbitals[l])
+                pdos_kinds[channel] = np.zeros((ncomponents, npoints), np.float)
             for iatom in info['iatom']:
                 pdos_atom = {}
-                for ichannel, l in info['ichannel'].items():
-                    # print(species, ichannel, l)
-                    filename = self.directory + '/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, species, ichannel, orbitals[l])
-                    channel = '{0}{1}'.format(ichannel, orbitals[l])
+                for istate, l in info['istate'].items():
+                    # print(kinds, istate, l)
+                    filename = self.directory + '/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kinds, istate, orbitals[l])
+                    channel = '{0}{1}'.format(istate, orbitals[l])
                     pdosinp = np.genfromtxt(filename)
                     # print(inpfile, channel, jpos)
                     ncomponents = (2*l+1) * self.nspins + 1
                     pdos_atom[channel] = np.zeros((ncomponents, npoints), np.float)
-                    # pdos_species[channel][0] += pdosinp[:, 0]
+                    # pdos_kinds[channel][0] += pdosinp[:, 0]
                     for j in range(ncomponents):
                         # print(j)
                         pdos_atom[channel][j] += pdosinp[:, j + 1]
-                         # sum over species
-                        pdos_species[channel][j] += pdosinp[:,j + 1]
-                self.pdos_atom[iatom] = pdos_atom
-            self.pdos_species[species] = pdos_species
+                         # sum over kinds
+                        pdos_kinds[channel][j] += pdosinp[:,j + 1]
+                self.pdos_atom.append(pdos_atom)
+            self.pdos_kinds[kinds] = pdos_kinds
         # sum over orbital
-        # print(self.pdos_species)
-        return self.pdos_energies, self.pdos_tot, self.pdos_atom, self.pdos_species
+        # print(self.pdos_kinds)
+        return self.pdos_energies, self.pdos_tot, self.pdos_atom, self.pdos_kinds
+    def merge_kind(self, ):
+        self.pdos_kinds = {}
+        for kinds, info in self.pdos_info.items():
+            pdos_kinds = {}
+            for iatom in info['iatom']:
+                for istate, l in info['istate'].items():
+                    # print(kinds, istate, l)
+                    channel = '{0}{1}'.format(istate, orbitals[l])
+                    pdos_atom[channel] = np.zeros((ncomponents, npoints), np.float)
+                    for j in range(ncomponents):
+                        # print(j)
+                        pdos_atom[channel][j] += pdosinp[:, j + 1]
+                         # sum over kinds
+                        pdos_kinds[channel][j] += pdosinp[:,j + 1]
+                self.pdos_atom[iatom] = pdos_atom
+            self.pdos_kinds[kinds] = pdos_kinds
     def read_proj(self, ):
         '''
         read projwfc output file *.up and *.dw
@@ -129,7 +150,7 @@ class DOS:
         self.read_pdos_info()
         proj_files = [self.directory + '/%s.projwfc_up'%self.prefix, self.directory + '/%s.projwfc_down'%self.prefix]
         projs = []
-        projs_species = []
+        projs_kinds = []
         channels = []
         for i in range(self.nspins):
             with open(proj_files[i]) as f:
@@ -141,28 +162,28 @@ class DOS:
                 nbands = int(lines[j - 3].split()[2])
                 print(nstates, nkpts, nbands)
                 proj = np.zeros((nstates, nkpts, nbands), np.float)
-                proj_species = {}
+                proj_kinds = {}
                 for istate in range(nstates):
                     iline = j + istate*(nkpts*nbands + 1) - 1
-                    species = lines[iline].split()[2]
+                    kinds = lines[iline].split()[2]
                     orbital = lines[iline].split()[3]
-                    channel = species + orbital
+                    channel = kinds + orbital
                     if channel not in channels: 
                         channels.append(channel)
-                        proj_species[channel] = np.zeros((nkpts, nbands), np.float)
+                        proj_kinds[channel] = np.zeros((nkpts, nbands), np.float)
                     # l = lines[iline].split()[2]
-                    # print(species, ichannel)
+                    # print(kinds, istate)
                     for ikpt in range(nkpts):
                         for iband in range(nbands):
                             iline = j + istate*(nkpts*nbands + 1) + ikpt*nbands + iband
                             # print('line: ', iline)
                             proj[istate, ikpt, iband] = float(lines[iline].split()[2])
-                            proj_species[channel][ikpt, iband] += float(lines[iline].split()[2])
+                            proj_kinds[channel][ikpt, iband] += float(lines[iline].split()[2])
                             # proj_atoms[channel, ikpt, iband] += 
             projs.append(proj)
-            projs_species.append(proj_species)
+            projs_kinds.append(proj_kinds)
         self.projs = projs
-        self.projs_species = projs_species
+        self.projs_kinds = projs_kinds
     def plot_data(self, energies, dos, label, ax = None, fill = True):
         if ax is None:
             import matplotlib.pyplot as plt
@@ -176,11 +197,13 @@ class DOS:
             if fill:
                 ax.fill_between(energies, (-1)**i*dos[i], 0, alpha = 0.2)
         return ax
-    def plot_dos(self, ax = None, fill = True, output = None):
+    def plot_dos(self, energies = None, dos = None, ax = None, fill = True, output = None):
         '''
         '''
+        if not dos: dos = self.dos
+        if not energies: energies = self.dos_energies
         fig, ax = plt.subplots(figsize = (6, 3))
-        ax = self.plot_data(self.dos_energies, self.dos, label = 'dos', ax = ax, fill = fill)
+        ax = self.plot_data(energies, dos, label = 'dos', ax = ax, fill = fill)
         ax.legend()
         # plt.grid(linestyle = '--')
         ax.set_xlabel('Energy (eV)')
@@ -190,10 +213,12 @@ class DOS:
             output = '{0}-dos.png'.format(self.prefix) 
             plt.savefig('%s' %output)
         return ax
-    def plot_pdos_tot(self, fill = True, output = None):
+    def plot_pdos_tot(self, energies = None, dos = None, ax = None, fill = True, output = None):
         # print(self.pdos_tot)
+        if not dos: dos = self.pdos_tot
+        if not energies: energies = self.pdos_energies
         fig, ax = plt.subplots(figsize = (6, 3))
-        ax = self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
+        ax = self.plot_data(energies, dos, label = 'pdos', ax = ax, fill = fill)
         ax.legend()
         ax.set_xlabel('Energy (eV)')
         ax.set_ylabel('PDOS (a.u.)')
@@ -202,19 +227,22 @@ class DOS:
             output = '{0}-pdos-tot.png'.format(self.prefix) 
             plt.savefig('%s' %output)
         return ax
-    def plot_pdos(self, total = False, select = None, fill = True, output = None):
+    def plot_pdos(self, kinds = None, energies = None, ax = None, total = False, select = None, fill = True, output = None):
         '''
         '''
-        fig, ax = plt.subplots(figsize = (6, 3))
-        if total:
-            ax = self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
-        for species, channels in self.pdos_species.items():
-            if select and species not in select: continue
+        if not energies: energies = self.pdos_energies
+        if not kinds: kinds = self.pdos_kinds
+        if not ax:
+            fig, ax = plt.subplots(figsize = (6, 3))
+        # if total:
+            # ax = self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
+        for kind, channels in kinds.items():
+            if select and kind not in select: continue
             for channel, pdos in channels.items():
-                if select and channel[-1] not in select[species]: continue
+                if select and channel[-1] not in select[kind]: continue
                 for i in range(self.nspins):
-                    label = '{0}-{1}'.format(species, channel)
-                    ax = self.plot_data(self.pdos_energies, pdos, label = label, ax = ax, fill = fill)
+                    label = '{0}-{1}'.format(kind, channel)
+                    ax = self.plot_data(energies, pdos, label = label, ax = ax, fill = fill)
         ax.legend()
         ax.set_xlabel('Energy (eV)')
         ax.set_ylabel('PDOS (a.u.)')
@@ -232,22 +260,26 @@ class DOS:
                         output = None):
         
         from ase.geometry import get_layers
+        from copy import deepcopy
         atoms = self.atoms
         layers = get_layers(atoms, miller, tolerance)[0]
-        nlayers = max(layers)
+        nlayers = max(layers) + 1
         fig, axs = plt.subplots(nlayers, 1, figsize = (6, 3), sharex = True)
         for i in range(nlayers):
-            self.plot_pdos()
-            if total:
-                ax = self.plot_data(self.pdos_energies[layers==i], pdos_tot[layers==i], label = 'pdos', ax = ax[i], fill = fill)
-            for species, channels in self.pdos_species.items():
-                if select and species not in select: continue
-                for channel, pdos in channels.items():
-                    if select and channel[-1] not in select[species]: continue
-                    for i in range(self.nspins):
-                        label = '{0}-{1}'.format(species, channel)
+            kinds = deepcopy(self.pdos_kinds)
+            for kind, channels in kinds:
+                print(kind, channels)
+                # for iatom in kinds
+            # if total:
+                # ax = self.plot_data(self.pdos_energies[layers==i], pdos_tot[layers==i], label = 'pdos', ax = ax[i], fill = fill)
+            # for kinds, channels in self.pdos_kinds.items():
+                # if select and kinds not in select: continue
+                # for channel, pdos in channels.items():
+                    # if select and channel[-1] not in select[kinds]: continue
+                    # for i in range(self.nspins):
+                        # label = '{0}-{1}'.format(kinds, channel)
                         # ax = self.plot_data(self.pdos_energies[layers==i], pdos[layers==i], label = label, ax = ax[i], fill = fill)
-                        pass
+                        # pass
         # ax.legend()
         # plt.set_xlabel('Energy (eV)')
         # plt.set_ylabel('PDOS (a.u.)')
