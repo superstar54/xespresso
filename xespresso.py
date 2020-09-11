@@ -9,8 +9,10 @@ Run pw.x jobs.
 import warnings
 from ase import io
 from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent, CalculationFailed
-from ase.calculators.espresso import Espresso
+import ase.calculators.espresso
+from xespresso.xespressorc import xespressorc
 import os
+import shutil
 import numpy as np
 import pickle
 
@@ -24,14 +26,14 @@ warn_template = 'Property "%s" is None. Typically, this is because the ' \
                 'Please try running Quantum Espresso with "high" verbosity.'
 # 
     
-class XEspresso(Espresso):
+class Espresso(ase.calculators.espresso.Espresso):
     """
     """
     implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time']
     command = 'pw.x -in PREFIX.pwi > PREFIX.pwo'
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', atoms=None, 
+                 label='xespresso', atoms=None, package = 'pw',
                  queue = None,
                  **kwargs):
         """
@@ -103,7 +105,7 @@ class XEspresso(Espresso):
               >>> bs.plot()
 
         """
-        Espresso.__init__(self, restart, ignore_bad_restart_file,
+        ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
                                   label, atoms, **kwargs)
         self.calc = None
         if atoms:
@@ -113,38 +115,46 @@ class XEspresso(Espresso):
             # if 'prefix' not in kwargs['input_data']:
             kwargs['input_data']['prefix'] = self.prefix
         self.directory = './' + label[0:-len(self.prefix)]
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-        self.set_queue('pw', queue)
+        self.directory_save = self.directory + '/%s.save/'%self.prefix
+        self.set_queue(package, queue)
+        self.package = package
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
     def set_queue(self, package = 'pw', queue = None):
         ''' '''
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         command = os.environ.get('ASE_ESPRESSO_COMMAND')
         if 'PACKAGE' in command:
-            command = command.replace('PACKAGE', package)
+            if 'pw' in package:
+                command = command.replace('PACKAGE', package, 1)
+                command = command.replace('PACKAGE', 'pw', 2)
+            else:
+                command = command.replace('PACKAGE', package)
         if 'PREFIX' in command:
             command = command.replace('PREFIX', self.prefix)
-        print('Command: {0}'.format(command))
+        # print('Command: {0}'.format(command))
         if queue:
             # Write the job file
+            xespressorc['queue'].update(queue)
+            jobname = '%s-%s-%s' %(self.prefix, package, 
+                self.parameters['input_data']['calculation'])
             with open('%s/.job_file' % self.directory, 'w') as fh:
                 fh.writelines("#!/bin/bash\n")
-                fh.writelines("#SBATCH --job-name=%s \n" % self.prefix)
+                fh.writelines("#SBATCH --job-name=%s \n" % jobname)
                 fh.writelines("#SBATCH --output=%s.out\n" % self.prefix)
                 fh.writelines("#SBATCH --error=%s.err\n" % self.prefix)
                 fh.writelines("#SBATCH --wait\n")
-                for key, value in queue.items():
+                for key, value in xespressorc['queue'].items():
                     if value:
                         fh.writelines("#SBATCH --%s=%s\n" %(key, value))
-                fh.writelines("ulimit -s unlimited \n")
-                fh.writelines("module load QuantumESPRESSO/6.5-iomkl-2018a \n")
+                fh.writelines("%s \n"% xespressorc['script'])
                 fh.writelines("%s \n" % command)
             self.command = "sbatch {0}".format('.job_file')
         else:
             self.command = command
-        print('Command: {0}'.format(self.command))
+        # print('Command: {0}'.format(self.command))
     def read_results(self):
         output = io.read(self.label + '.pwo')
         self.calc = output.calc
@@ -153,6 +163,17 @@ class XEspresso(Espresso):
         self.efermi = self.get_fermi_level()
         self.nspins = self.get_number_of_spins()
         self.atoms = output
+    def read_xml_file(self):
+        savedir = self.label + '.save'
+        xmlfile = os.path.join(savedir, 'data-file-schema.xml')
+        # print(xmlfile)
+        fromfile = False
+        if os.path.exists(xmlfile):
+            with open(xmlfile, 'r') as f:
+                lines = f.readlines()
+                if '</qes:espresso>' in lines[-1]:
+                    fromfile = True
+        return fromfile
     def read_convergence(self):
         '''
         slurmstepd: error: *** JOB 31580279 ON anode150 CANCELLED AT 
@@ -170,16 +191,14 @@ class XEspresso(Espresso):
         the daemon itself. We cannot recover from this failure, and
         therefore will terminate the job.
         '''
-        savedir = self.label + '.save'
-        # print(savedir)
-        fromfile = False
-        if os.path.exists(savedir):
-            fromfile = True
+        fromfile = self.read_xml_file()
         converged = 'DONE'
         errfile = self.label + '.err'
         if not os.path.exists(errfile):
             return converged, fromfile, 'NO OUTPUT'
-        errs = ['RESTART', 'pw.x', 'out-of-memory', 'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION']
+        errs = ['RESTART', 'pw.x', 'out-of-memory', 
+                'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION', 
+                'segmentation fault', 'PARSE_ERR', 'mpirun']
         with open(errfile, 'r') as f:
             lines = f.readlines()
             # print(line)
@@ -188,7 +207,8 @@ class XEspresso(Espresso):
                     if err in line:
                         converged = 'RESTART'
                         return converged, fromfile, line
-            if 'CANCELLED' in lines[0]:
+            if len(lines) > 0:
+                if 'CANCELLED' in lines[0]:
                     converged = 'CANCELLED'
                     return converged, fromfile, lines[0]
         # 
@@ -206,7 +226,7 @@ class XEspresso(Espresso):
                     return 'RESTART', fromfile, '%sMaximum CPU time exceeded'%stime
         return converged, fromfile, 'JOB DONE'
     def run(self, atoms = None, restart = False):
-        import datetime
+        import datetime, time
         if not restart:
             try:
                 atoms.get_potential_energy()
@@ -215,12 +235,23 @@ class XEspresso(Espresso):
         converged, fromfile, meg0 = self.read_convergence()
         print(converged, fromfile, meg0)
         i = 0
-        while converged == 'RESTART':
+        # restart 0, 1, 2
+        while converged == 'RESTART' or restart == 2:
+            restart = 1
+            # save old pwo file
+            pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
+            new_pwo = os.path.join(self.directory, '%s-%s.pwo'%(time.time(), self.prefix))
+            data_file = os.path.join(self.directory_save, 'data-file-schema.xml')
+            new_data_file = os.path.join(self.directory_save, '%s-data-file-schema.xml'%time.time())
+            if os.path.exists(pwo):
+                shutil.copy(pwo, new_pwo)
+            if os.path.exists(data_file):
+                shutil.copy(data_file, new_data_file)
             print(datetime.datetime.now())
             print('RESTART %s'%i)
             if fromfile:
                 self.parameters['input_data']['restart_mode'] = 'restart'
-                self.parameters['input_data']['startingwfc'] = 'file'
+                # self.parameters['input_data']['startingwfc'] = 'file'
             else:                
                 self.parameters['input_data']['restart_mode'] = 'from_scratch'
             try:
@@ -229,10 +260,12 @@ class XEspresso(Espresso):
                 print('Not converge.')
             converged, fromfile, meg = self.read_convergence()
             print(converged, fromfile, meg)
-            if meg == meg0: break
+            if meg == meg0:
+                print('Same message! \n %s'%meg)
+                break
             meg0 = meg
             i += 1
-    def nscf(self, run_type = 'dos', queue = False, kpts = (10, 10, 10), **kwargs):
+    def nscf(self, run_type = 'dos', package = None, queue = False, kpts = (10, 10, 10), **kwargs):
         import copy
         # save scf parameters
         if not self.scf_directory:
@@ -250,6 +283,8 @@ class XEspresso(Espresso):
         self.parameters['kpts'] = kpts
         kwargs['verbosity'] = 'high'
         # nscf or bands
+        self.parameters['input_data']['restart_mode'] = 'from_scratch'
+        self.parameters['input_data']['startingwfc'] = 'atomic+random'
         if run_type.upper() == 'BANDS':
             kwargs['calculation'] = 'bands'
         elif run_type.upper() == 'DOS':
@@ -263,7 +298,9 @@ class XEspresso(Espresso):
         # create working directory
         self.directory = self.scf_directory + '/' + '%s/'%(kwargs['calculation'])
         self.label = self.directory + self.prefix
-        self.set_queue('pw', queue)
+        if not package:
+            package = self.package
+        self.set_queue(package, queue)
     def nscf_calculate(self, ):
         import shutil
         directory = self.directory + '/{0}.save'.format(self.prefix)
@@ -373,3 +410,13 @@ class XEspresso(Espresso):
         wf = np.average(axy[ind]) - ef
         print('min: %s, max: %s'%(pos, pos + 3))
         print('The workfunction is {0:1.2f} eV'.format(wf))
+    def clean(self):
+        '''
+        remove wfc, hub files
+        '''
+        keys = ['.wfc', '.hub']
+        files = os.listdir(self.directory)
+        for file in files:
+            for key in keys:
+                if key in file:
+                    os.remove(os.path.join(self.directory, file))

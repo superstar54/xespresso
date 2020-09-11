@@ -1,1 +1,1 @@
-from xespresso.xespresso import XEspresso
+from xespresso.xespresso import Espresso

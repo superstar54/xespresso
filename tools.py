@@ -1,7 +1,53 @@
+import os
+from xespresso import Espresso
+from ase.dft.bandgap import bandgap
+import pickle
+import multiprocessing
 #====================================================
 # tools
+def mypool(jobs, func):
+    pool = multiprocessing.Pool(len(jobs))
+    results = []
+    images = []
+    for job, atoms in jobs.items():
+        print(job, atoms)
+        results.append(pool.apply_async(func, (job, atoms)))
+    for r in results:
+        r.get()
+    pool.close()
+    pool.join()
+
+def dwubelix(updates = []):
+    file = 'pw err out dos pdos projwfc'
+    print('Downloading.....')
+    cwd = os.getcwd()
+    for update in updates:
+        os.chdir(update)
+        os.system('dwubelix.py %s'%file)
+        os.chdir(cwd)
+    print('Finished')
+def ana(dire, calc):
+    atoms = calc.results['atoms']
+    results = [dire, atoms, atoms.cell, atoms.positions]
+    for prop in ['energy', 'forces', 'stress', 'magmoms']:
+        if prop in calc.results:
+            prop = calc.results[prop]
+        else:
+            prop = None
+        results.append(prop)
+    return results
+# tools
 def summary(updates = [], prefix = 'datas'):
-    datas = {}
+    import pandas as pd
+    columns = ['label', 'atoms', 'cell', 'positions', 'energy', 'forces', 'stress']
+    file = '%s.pickle' % prefix
+    db = '%s.db' % prefix
+    if os.path.exists(file):
+        with open(file, 'rb') as f:
+            datas, df = pickle.load(f)
+    else:
+        datas = {}
+        df = pd.DataFrame(columns=columns)
     calc = Espresso()
     print('Reading.....')
     for update in updates:
@@ -16,14 +62,18 @@ def summary(updates = [], prefix = 'datas'):
                 try:
                     calc.results = {}
                     calc.read_results()
+                    gap, p1, p2 = bandgap(calc)
+                    calc.results['gap'] = gap
                     t = calc.get_time()
                     calc.results['time'] = t
                     datas[i] = calc.results
+                    results = ana(i, calc)
+                    df.loc[len(df)] = results
                 except Exception as e:
                     print('='*30, '\n', i, e)
             os.chdir(cwd)
-    with open('%s.pickle' % prefix, 'wb') as f:
-        pickle.dump(datas, f)
+    with open(file, 'wb') as f:
+        pickle.dump([datas, df], f)
     print('Finished')
 
 def is_espresso(path):
