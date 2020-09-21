@@ -7,9 +7,12 @@ import matplotlib.pyplot as plt
 from xespresso import Espresso
 from ase.geometry import get_layers
 from ase.visualize import view
+import copy
 
 lspins = ['up', 'dw']
 orbitals = ['s', 'p', 'd', 'f']
+
+
 
 class DOS:
     def __init__(self, calc = None, label = None, dos = True, pdos = False, width=0.1, 
@@ -130,9 +133,9 @@ class DOS:
                     for j in range(ncomponents):
                         pdos_atom[channel][j] += pdosinp[:, j + 1]
                          # sum over kind
-                        pdos_kind[channel][j] += pdosinp[:,j + 1]
                 self.pdos_atoms[iatom] = pdos_atom
             self.pdos_kinds[kind] = pdos_kind
+        self.pdos_kinds = self.merge_kinds(index = range(len(self.atoms)))
         # sum over orbital
         return self.pdos_energies, self.pdos_tot, self.pdos_atoms, self.pdos_kinds
     def merge_kinds(self, index = []):
@@ -148,7 +151,7 @@ class DOS:
                 # print(channel)
                 pdos[:, :] = 0
             for iatom in info['iatom']:
-                if iatom not in index: continue
+                if iatom - 1 not in index: continue
                 # print(iatom)
                 for channel, pdos_atom in self.pdos_atoms[iatom].items():
                     pdos_kind[channel] += pdos_atom
@@ -247,8 +250,9 @@ class DOS:
             plt.savefig('%s' %output)
         return ax
     def plot_pdos(self, energies = None, pdos_kinds = None, 
-        Emin = -5, Emax = 5,
-        ax = None, total = False, select = None, fill = True, output = None, legend = False):
+                  Emin = -5, Emax = 5,
+                  ax = None, total = False, select = None, fill = True, 
+                  output = None, legend = False, xylabel = True):
         '''
         '''
         if energies is None: energies = self.pdos_energies
@@ -267,8 +271,9 @@ class DOS:
                     label = '{0}-{1}'.format(kind, channel)
                     ax = self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill)
         if legend: ax.legend()
-        ax.set_xlabel('Energy (eV)')
-        ax.set_ylabel('PDOS (a.u.)')
+        if xylabel:
+            ax.set_xlabel('Energy (eV)')
+            ax.set_ylabel('PDOS (a.u.)')
         if output is None:
             output = '{0}-pdos.png'.format(self.prefix) 
             plt.savefig('%s' %output)
@@ -300,14 +305,42 @@ class DOS:
             index = [j for j in indexs if layers[j] ==  ilayer]
             images.append(atoms[index])
             pdos_kinds = self.merge_kinds(index)
-            self.plot_pdos(energies = self.pdos_energies, pdos_kinds = pdos_kinds, select = select, Emin = Emin, Emax = Emax, ax = axs[iax], legend = False)
+            self.plot_pdos(energies = self.pdos_energies, pdos_kinds = pdos_kinds, select = select, 
+                           Emin = Emin, Emax = Emax, ax = axs[iax], 
+                           legend = False, xylabel = False)
             axs[iax].axvline(0, color = 'b')
+            # print(iax, ilayer)
+            # print(index)
             # axs[iax].set_xlim([Emin, Emax])
-        plt.xlabel('E - E$_{Fermi}$ (eV)', size='14')
+        plt.xlabel('E - E$_{Fermi}$ (eV)', size='16')
         plt.subplots_adjust(hspace=0)
-        fig.text(0.05, 0.5, 'PDOS', size='22', va='center', rotation='vertical')
+        fig.text(0.05, 0.5, 'PDOS (a.u.)', size='16', va='center', rotation='vertical')
         if output is None:
             output = '{0}-pdos.png'.format(self.prefix) 
             plt.savefig('%s' %output)
         # view(images)
         return axs, images
+
+
+def compare_pdos(dos1, index1, dos2, index2):
+    '''
+    '''
+    if len(index1) != len(index2):
+        assert ('number of atoms wrong!')
+    natoms = len(index1)
+    for i in range(natoms):
+        if dos1.atoms[i].symbol != dos2.atoms[i].symbol:
+            assert('atoms symbol not match!')
+    ddos = copy.deepcopy(dos1)
+    # print(dos1.atoms.get_chemical_symbols())
+    # print(dos2.atoms.get_chemical_symbols())
+    atoms = ddos.atoms
+    for i in range(natoms):
+        iatom1 = index1[i]
+        iatom2 = index2[i]
+        for channel in ddos.pdos_atoms[iatom1 + 1]:
+            # print(i, atoms[i].symbol, channel)
+            npoints = len(ddos.pdos_atoms[iatom1 + 1][channel][0])
+            ddos.pdos_atoms[iatom1 + 1][channel] = dos1.pdos_atoms[iatom1 + 1][channel][:, 0:npoints] - dos2.pdos_atoms[iatom2 + 1][channel][:, 0:npoints]
+    ddos.pdos_kinds = ddos.merge_kinds(index = range(len(ddos.atoms)))
+    return ddos
