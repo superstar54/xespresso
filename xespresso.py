@@ -1,6 +1,6 @@
 """Quantum ESPRESSO Calculator
 
-export ASE_ESPRESSO_COMMAND="/path/to/pw.x -in PREFIX.pwi > PREFIX.pwo"
+export ASE_ESPRESSO_COMMAND="/path/to/package.x -in PREFIX.pwi > PREFIX.pwo"
 
 Run pw.x jobs.
 """
@@ -15,6 +15,7 @@ import os
 import shutil
 import numpy as np
 import pickle
+from datetime import datetime
 
 
 error_template = 'Property "%s" not available. Please try running Quantum\n' \
@@ -110,19 +111,21 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.calc = None
         if atoms:
             self.atoms = atoms
-        self.prefix = label.split('/')[-1]
+        self.directory = os.path.split(label)[0]
+        self.prefix = os.path.split(label)[1]
         if 'input_data' in kwargs:
-            # if 'prefix' not in kwargs['input_data']:
             kwargs['input_data']['prefix'] = self.prefix
-        self.directory = './' + label[0:-len(self.prefix)]
-        self.directory_save = self.directory + '/%s.save/'%self.prefix
+        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
         self.set_queue(package, queue)
         self.package = package
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
     def set_queue(self, package = 'pw', queue = None):
-        ''' '''
+        '''
+        If queue, change command to "sbatch .job_file".
+        The queue information are written into '.job_file'
+        '''
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
         command = os.environ.get('ASE_ESPRESSO_COMMAND')
@@ -134,7 +137,6 @@ class Espresso(ase.calculators.espresso.Espresso):
                 command = command.replace('PACKAGE', package)
         if 'PREFIX' in command:
             command = command.replace('PREFIX', self.prefix)
-        # print('Command: {0}'.format(command))
         if queue:
             # Write the job file
             xespressorc['queue'].update(queue)
@@ -156,77 +158,113 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.command = command
         # print('Command: {0}'.format(self.command))
     def read_results(self):
-        output = io.read(self.label + '.pwo')
-        self.calc = output.calc
-        self.results = output.calc.results
-        self.results['atoms'] = output
-        self.efermi = self.get_fermi_level()
-        self.nspins = self.get_number_of_spins()
-        self.atoms = output
+        pwo = self.prefix + '.pwo'
+        pwos = [file for file in os.listdir(self.directory) if pwo in file]
+        output = None
+        for pwo in pwos:
+            pwo = os.path.join(self.directory, pwo)
+            # print('read results from: %s'%pwo)
+            try:
+                output = io.read(pwo)
+            except:
+                pass
+                # print('\nread %s failed\n'%pwo)
+        if output:
+            self.calc = output.calc
+            self.results = output.calc.results
+            self.results['atoms'] = output
+            self.efermi = self.get_fermi_level()
+            self.nspins = self.get_number_of_spins()
+            self.atoms = output
+        else:
+            print('\nread result failed\n')
+
     def read_xml_file(self):
-        savedir = self.label + '.save'
-        xmlfile = os.path.join(savedir, 'data-file-schema.xml')
-        # print(xmlfile)
-        fromfile = False
-        if os.path.exists(xmlfile):
-            with open(xmlfile, 'r') as f:
+        '''
+        If data-file-schema.xml is readable, then fromfile = True
+        '''
+        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
+        if not os.path.exists(self.save_directory): return False
+        xml0 = os.path.join(self.save_directory, 'data-file-schema.xml')
+        xmls = [file for file in os.listdir(self.save_directory) if 'data-file-schema.xml' in file]
+        goodxml = []
+        for xml in xmls:
+            xml = os.path.join(self.save_directory, xml)
+            # print('read results from: %s'%xml)
+            with open(xml, 'r') as f:
                 lines = f.readlines()
+                if len(lines) < 1: continue
                 if '</qes:espresso>' in lines[-1]:
-                    fromfile = True
+                    goodxml.append(xml)
+        fromfile = False
+        nxml = len(goodxml)
+        # print(nxml, goodxml, xml0)
+        if nxml > 0:
+            if xml0 not in goodxml:
+                shutil.copy(goodxml[-1], xml0)
+            fromfile = True
         return fromfile
     def read_convergence(self):
         '''
-        slurmstepd: error: *** JOB 31580279 ON anode150 CANCELLED AT 
-        2020-07-29T18:45:16 DUE TO NODE FAILURE, 
-        SEE SLURMCTLD LOG FOR DETAILS 
-        '''
-        '''
-        ORTE has lost communication with a remote daemon.       
-
-          HNP daemon   : [[16919,0],0] on node anode031
-          Remote daemon: [[16919,0],3] on node anode127     
-
-        This is usually due to either a failure of the TCP network
-        connection to the node, or possibly an internal failure of
-        the daemon itself. We cannot recover from this failure, and
-        therefore will terminate the job.
+        Read the status of the calculation.
+        {
+        '0': 'Done',
+        '-1': 'Cancelled',
+        '1': 'Need restart'
+        '2': 'Pending or not submit',
+        '3': 'Not start',
+        '4': 'Not finish',
+        }
         '''
         fromfile = self.read_xml_file()
-        converged = 'DONE'
         errfile = self.label + '.err'
         if not os.path.exists(errfile):
-            return converged, fromfile, 'NO OUTPUT'
+            # print('%s not exists'%errfile)
+            return 1, fromfile, 'Pending or not submit'
         errs = ['RESTART', 'pw.x', 'out-of-memory', 
                 'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION', 
                 'segmentation fault', 'PARSE_ERR', 'mpirun']
+        cancelled = False
         with open(errfile, 'r') as f:
             lines = f.readlines()
-            # print(line)
             for line in lines:
+                if 'CANCELLED' in line:
+                    cancelled = True
                 for err in errs:
                     if err in line:
-                        converged = 'RESTART'
-                        return converged, fromfile, line
+                        return 1, fromfile, line
+            # cancelled by owner
             if len(lines) > 0:
-                if 'CANCELLED' in lines[0]:
-                    converged = 'CANCELLED'
-                    return converged, fromfile, lines[0]
+                if cancelled:
+                    return -1, fromfile, lines[0]
         # 
         output = self.label + '.pwo'
         if not os.path.exists(output):
-            return converged, fromfile, 'NO OUTPUT'
+            # print('%s not exists'%output)
+            return 3, fromfile, 'No pwo output file'
         with open(output, 'r') as f:
             lines = f.readlines()
+            if len(lines) == 0: return 1, fromfile, 'pwo file has nothing'
             stime = lines[1].split('starts on')[1]
             nlines = len(lines)
             n = min([100, nlines])
             for line in lines[-n:-1]:
+                if line.rfind('too many bands are not converged') > -1:
+                    return 1, fromfile, '%s, %s'%(stime, line)
+                if line.rfind('convergence NOT achieved after') > -1:
+                    fromfile = True
+                    return 1, fromfile, '%s, %s'%(stime, line)
                 if line.rfind('Maximum CPU time exceeded') > -1:
                     fromfile = True
-                    return 'RESTART', fromfile, '%sMaximum CPU time exceeded'%stime
-        return converged, fromfile, 'JOB DONE'
+                    return 1, fromfile, '%s, %s'%(stime, line)
+                if line.rfind('JOB DONE.') > -1:
+                    fromfile = True
+                    return 0, fromfile, line
+        return 4, fromfile, line
     def run(self, atoms = None, restart = False):
-        import datetime, time
+        '''
+        run and restart
+        '''
         if not restart:
             try:
                 atoms.get_potential_energy()
@@ -236,18 +274,11 @@ class Espresso(ase.calculators.espresso.Espresso):
         print(converged, fromfile, meg0)
         i = 0
         # restart 0, 1, 2
-        while converged == 'RESTART' or restart == 2:
+        while converged > 0 or restart == 2:
             restart = 1
-            # save old pwo file
-            pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
-            new_pwo = os.path.join(self.directory, '%s-%s.pwo'%(time.time(), self.prefix))
-            data_file = os.path.join(self.directory_save, 'data-file-schema.xml')
-            new_data_file = os.path.join(self.directory_save, '%s-data-file-schema.xml'%time.time())
-            if os.path.exists(pwo):
-                shutil.copy(pwo, new_pwo)
-            if os.path.exists(data_file):
-                shutil.copy(data_file, new_data_file)
-            print(datetime.datetime.now())
+            # backup old files, *pwo, *xml
+            self.backup_file('%s.pwo'%self.prefix, directory = self.directory)
+            self.backup_file('data-file-schema.xml', directory = self.save_directory)
             print('RESTART %s'%i)
             if fromfile:
                 self.parameters['input_data']['restart_mode'] = 'restart'
@@ -265,6 +296,29 @@ class Espresso(ase.calculators.espresso.Espresso):
                 break
             meg0 = meg
             i += 1
+    def backup_file(self, src, directory = '.'):
+        '''
+        compare files
+        backup
+        '''
+        import filecmp
+        tnow = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        new_src = os.path.join(directory, '%s-%s'%(tnow, src))
+        src = os.path.join(directory, src)
+        if not os.path.exists(src): return 0
+        flist = []
+        ftype = src.split('.')[-1]
+        flag = True
+        for dst in os.listdir(directory):
+            dst = os.path.join(directory, dst)
+            if dst == src: continue
+            if dst.endswith(ftype):
+                if filecmp.cmp(dst, src):
+                    flag = False
+        # print('backup files: ', flag, src, new_src)
+        if flag:
+            shutil.copy(src, new_src)
+        return 0
     def nscf(self, run_type = 'dos', package = None, queue = False, kpts = (10, 10, 10), **kwargs):
         import copy
         # save scf parameters
@@ -293,26 +347,35 @@ class Espresso(ase.calculators.espresso.Espresso):
             for key in ['smearing', 'degauss']:
                 if key in self.parameters['input_data']:
                     del self.parameters['input_data'][key]
+        elif run_type.upper() == 'LBERRY':
+            kwargs['calculation'] = 'nscf'
+            self.parameters['input_data']['occupations'] = 'fixed'
+            for key in ['smearing']:
+                if key in self.parameters['input_data']:
+                    del self.parameters['input_data'][key]
         for key, value in kwargs.items():
             self.parameters['input_data'][key] = value
         # create working directory
-        self.directory = self.scf_directory + '/' + '%s/'%(kwargs['calculation'])
-        self.label = self.directory + self.prefix
+        self.save_directory_old = self.save_directory
+        self.directory = os.path.join(self.scf_directory, '%s/'%(kwargs['calculation']))
+        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
+        self.label = os.path.join(self.directory, self.prefix)
         if not package:
             package = self.package
         self.set_queue(package, queue)
     def nscf_calculate(self, ):
         import shutil
-        directory = self.directory + '/{0}.save'.format(self.prefix)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        if not os.path.exists(self.save_directory):
+            os.makedirs(self.save_directory)
         files = ['charge-density.hdf5', 'charge-density.dat', 'data-file-schema.xml', 'paw.txt', 'occup.txt']
         for species, pseudo in self.parameters['pseudopotentials'].items():
             files.append(pseudo)
+        print(self.save_directory)
         for file in files:
-            file = self.scf_directory + '/%s.save/%s' % (self.prefix, file)
+            file = os.path.join(self.save_directory_old, '%s'%file)
             if os.path.exists(file):
-                shutil.copy(file, directory)
+                print(file)
+                shutil.copy(file, self.save_directory)
         print('-'*30)
         print('\n {0} calculation in {1} ......'.format(
                     self.parameters['input_data']['calculation'], 
@@ -322,7 +385,8 @@ class Espresso(ase.calculators.espresso.Espresso):
 
     def get_time(self, ):
         t = 0
-        with open(self.directory + '/%s.pwo'%self.prefix) as f:
+        filename = os.path.join(self.directory, '%s.pwo'%self.prefix)
+        with open(filename) as f:
             lines = f.readlines()
             for line in lines[-200:]:
                 if 'init_run     :' in line or 'electrons    :' in line:
@@ -351,10 +415,12 @@ class Espresso(ase.calculators.espresso.Espresso):
                     'lwrite_overlaps', 'lbinary_data', 'kresolveddos', 'tdosinboxes', 
                     'n_proj_boxes', 'irmin(3,n_proj_boxes)', 'irmax(3,n_proj_boxes)', 
                     'plotboxes', ]},
+        'hp': {'INPUTHP': ['prefix','outdir','iverbosity','max_seconds','nq1','nq2','nq3','skip_equivalence_q','determine_num_pert_only','find_atpert','docc_thr','skip_type','equiv_type','perturb_only_atom','start_q','last_q','sum_pertq','compute_hp','conv_thr_chi','thresh_init','ethr_nscf','niter_max','alpha_mix(i)','nmix','num_neigh','lmin','rmax',]},
         }
         kwargs['prefix'] = self.prefix
         package_parameters = post_parameters[package]
-        with open(self.directory+'/%s.%si' %(self.prefix, package), 'w') as f:
+        filename = os.path.join(self.directory, '%s.%si' %(self.prefix, package))
+        with open(filename, 'w') as f:
             for section, parameters in package_parameters.items():
                 f.write('&%s\n '%section)
                 for key, value in kwargs.items():
@@ -362,9 +428,6 @@ class Espresso(ase.calculators.espresso.Espresso):
                         f.write('  %s = %s, \n' %(key, value))
                 f.write('/ \n')
         self.set_queue(package, queue)
-        # self.post_calculate()
-        # self.read_dos()
-        # if not command:
         command = self.command
         print('running %s'%package)
         print(command)
@@ -382,13 +445,16 @@ class Espresso(ase.calculators.espresso.Espresso):
                    '{} with error code {}'.format(self.name, command,
                                                   path, errorcode))
             raise CalculationFailed(msg)
-    def get_work_function(self, input = 'potential.cube', output = 'workfunction.png'):
+    def get_work_function(self, ax = None, inpfile = 'potential.cube', output = None, shift = False):
         import matplotlib.pyplot as plt
         from ase.io.cube import read_cube_data
         from ase.units import create_units
+        if ax is None:
+            import matplotlib.pyplot as plt
+            ax = plt.gca()
         units = create_units('2006')
         #
-        filename = self.directory + '/' + input
+        filename = os.path.join(self.directory, inpfile)
         data, atoms = read_cube_data(filename)
         data = data * units['Ry']
         ef = self.get_fermi_level()
@@ -398,11 +464,16 @@ class Espresso(ase.calculators.espresso.Espresso):
         # setup the x-axis in realspace
         uc = atoms.get_cell()
         xaxis = np.linspace(0, uc[2][2], nz)
-        plt.plot(xaxis, axy)
-        plt.plot([min(xaxis), max(xaxis)], [ef, ef], 'k:')
-        plt.xlabel('Position along z-axis')
-        plt.ylabel('x-y averaged electrostatic potential')
-        plt.savefig('%s'%output)
+        if shift:
+            ax.plot(xaxis, axy - ef)
+            ef = 0
+        else:
+            ax.plot(xaxis, axy)
+            ax.plot([min(xaxis), max(xaxis)], [ef, ef], 'k:')
+        ax.set_xlabel('Position along z-axis ($\AA$)')
+        ax.set_ylabel('Potential (eV)')
+        if output:
+            plt.savefig('%s'%output)
         # plt.show()
         atoms = self.results['atoms']
         pos = max(atoms.positions[:, 2] + 3)

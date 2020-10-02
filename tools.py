@@ -1,6 +1,7 @@
 import os
 from ase.geometry import get_layers
 from ase.constraints import FixAtoms
+from ase.io.espresso import read_espresso_in, read_fortran_namelist
 from xespresso import Espresso
 from ase.dft.bandgap import bandgap
 import pickle
@@ -8,6 +9,37 @@ import multiprocessing
 import numpy as np
 #====================================================
 # tools
+def read_espresso_input(fileobj):
+    """Parse a Quantum ESPRESSO input files, '.in', '.pwi'.
+    """
+    atoms = read_espresso_in(fileobj)
+    if isinstance(fileobj, str):
+        fileobj = open(fileobj, 'rU')
+
+    # parse namelist section and extract remaining lines
+    data, card_lines = read_fortran_namelist(fileobj)
+    input_data = {}
+    for sec, paras in data.items():
+        for key, value in paras.items():
+            input_data[key] = value
+    # get number of type
+    ntyp = data['system']['ntyp']
+    pseudopotentials = {}
+    trimmed_lines = (line for line in card_lines
+                     if line.strip() and not line[0] == '#')
+    for line in trimmed_lines:
+        if line.strip().startswith('ATOMIC_SPECIES'):
+            for i in range(ntyp):
+                species = next(trimmed_lines).split()
+                pseudopotentials[species[0]] = species[2]
+        if line.strip().startswith('K_POINTS'):
+            kpts = next(trimmed_lines)
+    # calc = Espresso(pseudopotentials=pseudopotentials, 
+    #                 input_data = input_data,
+    #                 kpts=kpts)
+    return input_data, pseudopotentials, kpts
+
+
 def merge_slab(slab1, slab2, index = 2):
     '''
     '''
@@ -52,19 +84,24 @@ def fix_layers(atoms, miller, tol = 1.0, n = [0, 4]):
 def mypool(jobs, func):
     '''
     '''
+    from random import random
+    from time import sleep
     pool = multiprocessing.Pool(len(jobs))
     results = []
     images = []
+    t = 0
     for job, atoms in jobs.items():
-        print(job, atoms)
-        results.append(pool.apply_async(func, (job, atoms)))
+        print(job, len(atoms), atoms)
+        sleep(random()*2)
+        results.append(pool.apply_async(func, (job, atoms, t)))
+        t += random()*5
     for r in results:
         r.get()
     pool.close()
     pool.join()
 
 def dwubelix(updates = []):
-    file = 'pw err out dos pdos projwfc'
+    file = 'pw err out dos pdos projwfc a.xml'
     print('Downloading.....')
     cwd = os.getcwd()
     for update in updates:
@@ -108,13 +145,13 @@ def summary(updates = [], prefix = 'datas'):
                 try:
                     calc.results = {}
                     calc.read_results()
-                    gap, p1, p2 = bandgap(calc)
-                    calc.results['gap'] = gap
-                    t = calc.get_time()
-                    calc.results['time'] = t
+                    # gap, p1, p2 = bandgap(calc)
+                    # calc.results['gap'] = gap
+                    # t = calc.get_time()
+                    # calc.results['time'] = t
                     datas[i] = calc.results
-                    results = ana(i, calc)
-                    df.loc[len(df)] = results
+                    # results = ana(i, calc)
+                    # df.loc[len(df)] = results
                 except Exception as e:
                     print('='*30, '\n', i, e)
             os.chdir(cwd)
@@ -129,7 +166,8 @@ def is_espresso(path):
     dirs = os.listdir(path)
     # print(dirs)
     # flag = True
-    for qefile in ['.pwo']:
+    
+    for qefile in ['.pwi']:
         flag = False
         for file in dirs:
             if qefile in file:

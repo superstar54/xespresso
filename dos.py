@@ -8,6 +8,7 @@ from xespresso import Espresso
 from ase.geometry import get_layers
 from ase.visualize import view
 import copy
+import matplotlib.pyplot as plt
 
 lspins = ['up', 'dw']
 orbitals = ['s', 'p', 'd', 'f']
@@ -199,35 +200,42 @@ class DOS:
             projs_kinds.append(proj_kinds)
         self.projs = projs
         self.projs_kinds = projs_kinds
-    def plot_data(self, energies, dos, label, xindex, ax = None, fill = True):
+    def plot_data(self, energies, dos, label, xindex, ax = None, fill = True, color = None):
         if ax is None:
-            import matplotlib.pyplot as plt
             ax = plt.gca()
         for i in range(self.nspins):
             if self.nspins == 2:
                 newlabel = '%s-%s' % (label, lspins[i])
             else:
                 newlabel = label
-            ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel)
+            if color:
+                ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel, color = color)
+            else:
+                ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel)
             if fill:
-                ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2)
+                if color:
+                    ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2, color = color)
+                else:
+                    ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2)
         return ax
     def plot_dos(self, energies = None, dos = None, 
-        Emin = -5,
-        Emax = 5,
+        Emin = -5, Emax = 5, color = None,
         ax = None, fill = True, output = None):
         '''
         '''
+        import matplotlib.pyplot as plt
+        if ax is None:
+            fig, ax = plt.subplots(figsize = (6, 3))
+            # ax = plt.gca()
         if dos is None: dos = self.dos
         if energies is None: energies = self.dos_energies
         xindex = (energies>Emin) & (energies<Emax)
-        fig, ax = plt.subplots(figsize = (6, 3))
-        ax = self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill)
-        ax.legend()
+        ax = self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill, color = color)
+        # ax.legend()
         # plt.grid(linestyle = '--')
-        ax.set_xlabel('Energy (eV)')
-        ax.set_ylabel('DOS (a.u.)')
-        ax.set_title('%s' % self.prefix)
+        # ax.set_xlabel('Energy (eV)')
+        # ax.set_ylabel('DOS (a.u.)')
+        # ax.set_title('%s' % self.prefix)
         if output is None:
             output = '{0}-dos.png'.format(self.prefix) 
             plt.savefig('%s' %output)
