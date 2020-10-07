@@ -8,6 +8,70 @@ import pickle
 import multiprocessing
 import numpy as np
 #====================================================
+def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
+    nspin = 1, lda_plus_u = False, slab = False,
+    edir = False, atoms = None):
+    if slab:
+        mixing_mode = 'local-TF'
+    else:
+        mixing_mode = 'plain'
+    #
+    inp = {
+    #control
+    'calculation':         calculation,
+    'max_seconds':         78000,
+    'verbosity':           'high',
+    'tstress':             True,
+    'tprnfor':             True,
+    'etot_conv_thr':       1.0e-5,
+    'forc_conv_thr':       1.0e-3,
+    #system
+    'ecutwfc':             ecutwfc,
+    'ecutrho':             ecutwfc*8,
+    'occupations':         'smearing',
+    'degauss':             0.01,
+    'nspin':               nspin,
+    #electrons
+    'startingwfc':         'atomic',
+    'diagonalization':     'david',
+    'mixing_beta':         mixing_beta,
+    'conv_thr':            conv_thr,
+    'electron_maxstep':    200,
+    'mixing_mode':         mixing_mode,
+    }
+    #
+    if edir:
+        inp.update(dipole_correction(atoms, edir))
+    if lda_plus_u:
+        print(atoms)
+        assert atoms, "Please add the atoms which needs plus + u"
+        inp.update(plusu(atoms, lda_plus_u))
+
+        
+    return inp
+def dipole_correction(atoms, edir):
+    inp = {
+          'dipfield':  True, 
+          'tefield':   True,
+          'edir':      edir,
+          'eamp':      0.001,
+          'eopreg':    0.1,
+          }
+    emaxpos = max(atoms.positions[:, edir - 1] + atoms.cell[edir - 1][edir - 1])/2.0/atoms.cell[edir - 1][edir - 1]
+    inp['emaxpos'] = emaxpos
+    return inp
+def plusu(atoms, lda_plus_u):
+    from collections import OrderedDict
+    inp = {}
+    symbols = atoms.get_chemical_symbols()
+    symbols = list(OrderedDict.fromkeys(symbols))
+    for i in range(len(symbols)):
+        ele = symbols[i]
+        if ele in lda_plus_u:
+            inp['lda_plus_u'] = True
+            inp['Hubbard_U({0})'.format(i + 1)] = lda_plus_u[ele]
+    return inp
+
 # tools
 def read_espresso_input(fileobj):
     """Parse a Quantum ESPRESSO input files, '.in', '.pwi'.
@@ -40,13 +104,6 @@ def read_espresso_input(fileobj):
     return input_data, pseudopotentials, kpts
 
 
-def merge_slab(slab1, slab2, index = 2):
-    '''
-    '''
-    slab2.cell[index] = slab1.cell[index]
-    slab2.set_cell(slab1.cell, scale_atoms = True)
-    slab1 = slab1 + slab2
-    return slab1
 def build_oer(atoms):
     '''
     '''
