@@ -36,7 +36,7 @@ def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
     'diagonalization':     'david',
     'mixing_beta':         mixing_beta,
     'conv_thr':            conv_thr,
-    'electron_maxstep':    200,
+    'electron_maxstep':    400,
     'mixing_mode':         mixing_mode,
     }
     #
@@ -65,8 +65,10 @@ def plusu(atoms, lda_plus_u):
     inp = {}
     symbols = atoms.get_chemical_symbols()
     symbols = list(OrderedDict.fromkeys(symbols))
+    tags = atoms.get_tags()
     for i in range(len(symbols)):
         ele = symbols[i]
+        if 
         if ele in lda_plus_u:
             inp['lda_plus_u'] = True
             inp['Hubbard_U({0})'.format(i + 1)] = lda_plus_u[ele]
@@ -129,7 +131,7 @@ def build_oer(atoms):
         jobs[job] = natoms
     return jobs
 
-def fix_layers(atoms, miller, tol = 1.0, n = [0, 4]):
+def fix_layers(atoms, miller = (0, 0, 1), tol = 1.0, n = [0, 4]):
     '''
     '''
     layers = get_layers(atoms, miller, tol)[0]

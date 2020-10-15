@@ -10,6 +10,7 @@ import warnings
 from ase import io
 from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent, CalculationFailed
 import ase.calculators.espresso
+from xespresso.xio import write_espresso_in
 from xespresso.xespressorc import xespressorc
 import os
 import shutil
@@ -178,6 +179,9 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.atoms = output
         else:
             print('\nread result failed\n')
+    def write_input(self, atoms, properties=None, system_changes=None):
+        FileIOCalculator.write_input(self, atoms, properties, system_changes)
+        write_espresso_in(self.label + '.pwi', atoms, **self.parameters)
 
     def read_xml_file(self):
         '''

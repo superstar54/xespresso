@@ -1,0 +1,39 @@
+&CONTROL
+   calculation      = 'scf'
+   verbosity        = 'high'
+   prefix           = 'al'
+/
+&SYSTEM
+   ecutwfc          = 40.0
+   ecutrho          = 320.0
+   occupations      = 'smearing'
+   degauss          = 0.01
+   smearing         = 'gaussian'
+   ntyp             = 1
+   nat              = 4
+   ibrav            = 0
+/
+&ELECTRONS
+/
+&IONS
+/
+&CELL
+/
+
+ATOMIC_SPECIES
+Al 26.9815385 Al.pbe-n-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+8 8 8  0 0 0
+
+CELL_PARAMETERS angstrom
+4.05000000000000 0.00000000000000 0.00000000000000
+0.00000000000000 4.05000000000000 0.00000000000000
+0.00000000000000 0.00000000000000 4.05000000000000
+
+ATOMIC_POSITIONS angstrom
+Al 0.0000000000 0.0000000000 0.0000000000 
+Al 0.0000000000 2.0250000000 2.0250000000 
+Al 2.0250000000 0.0000000000 2.0250000000 
+Al 2.0250000000 2.0250000000 0.0000000000 
+
