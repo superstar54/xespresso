@@ -35,7 +35,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     command = 'pw.x -in PREFIX.pwi > PREFIX.pwo'
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', atoms=None, package = 'pw',
+                 label='xespresso', atoms=None, package = 'pw', parallel = None,
                  queue = None,
                  **kwargs):
         """
@@ -72,6 +72,13 @@ class Espresso(ase.calculators.espresso.Espresso):
              queue = {'nodes': 4, 'nta]sks-per-node': 20, 
                       'account': 'xxx', 'partition': 'normal', 
                       'time': '23:59:00'}
+        package: str
+            Choose the quantum espresso pacakge: pw, dos, band, ph, ..
+            neb is not implemented yet.
+        parallel: str
+            A str which control the parallelization parameters: -nimage, -npools, 
+            -nband, -ntg, -ndiag or -northo (shorthands, respectively: 
+            -ni, -nk, -nb, -nt, -nd).
 
 
         .. note::
@@ -98,13 +105,6 @@ class Espresso(ase.calculators.espresso.Espresso):
               >>> calc.nscf(run_type = 'bands', kpts={<your Brillouin zone path>})
               >>> calc.nscf_calculate(atoms)
 
-           3. Make the plot using the BandStructure functionality,
-              after setting the Fermi level to that of the prior
-              self-consistent calculation:
-
-              >>> bs = calc.band_structure()
-              >>> bs.reference = fermi_energy
-              >>> bs.plot()
 
         """
         ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
@@ -117,12 +117,13 @@ class Espresso(ase.calculators.espresso.Espresso):
         if 'input_data' in kwargs:
             kwargs['input_data']['prefix'] = self.prefix
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
-        self.set_queue(package, queue)
+        self.set_queue(package, parallel, queue)
         self.package = package
+        self.parallel = parallel
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
-    def set_queue(self, package = 'pw', queue = None):
+    def set_queue(self, package = 'pw', parallel = None, queue = None):
         '''
         If queue, change command to "sbatch .job_file".
         The queue information are written into '.job_file'
@@ -138,6 +139,8 @@ class Espresso(ase.calculators.espresso.Espresso):
                 command = command.replace('PACKAGE', package)
         if 'PREFIX' in command:
             command = command.replace('PREFIX', self.prefix)
+        if 'PARALLEL' in command:
+            command = command.replace('PARALLEL', parallel)
         if queue:
             # Write the job file
             xespressorc['queue'].update(queue)

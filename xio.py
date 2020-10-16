@@ -278,7 +278,6 @@ def write_espresso_in(filename, atoms, input_data=None, pseudopotentials=None,
         pwi.append('ATOMIC_POSITIONS angstrom\n')
     pwi.extend(atomic_positions_str)
     pwi.append('\n')
-    print(input_parameters)
     # DONE!
     with open(filename, 'w') as fd:
         fd.write(''.join(pwi))

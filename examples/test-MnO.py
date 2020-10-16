@@ -17,6 +17,7 @@ atoms.arrays['species'][15] = 'O1'
 input_ntyp = {
 'starting_magnetization': {'Mn1': 1.0, 'Mn2': -1.0, 'Mn3': -1.0, 'Mn4': 1.0, 'O1': 1.0},
 'Hubbard_U': {'Mn1': 5.7504, 'Mn2': 5.7606, 'Mn3': 5.7490, 'Mn4': 5.7551, 'O1': 3.0},
+'starting_charge': {'Mn1': 1}
 }
 
 input_data = {
@@ -50,8 +51,10 @@ pseudopotentials = {
 'O1'  : 'O.pbesol-n-rrkjus_psl.1.0.0.UPF',
 'Sr' : 'Sr.pbesol-spn-rrkjus_psl.1.0.0.UPF',
 }
-print(queue)
+# print(queue)
 calc = Espresso(pseudopotentials = pseudopotentials, 
+                 package = 'pw',
+                 parallel = '-nk 2 -nt 4 -nd 144',  # parallel parameters
                  queue = queue,
                  label  = 'scf/mno',
                  input_data = input_data, kpts=(6, 6, 6))

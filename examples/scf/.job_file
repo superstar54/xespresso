@@ -11,4 +11,4 @@
 #SBATCH --account=dcb
 #SBATCH --partition=all
 None 
-pw.x -in mno.pwi > mno.pwo 
+pw.x -nk 2 -nt 4 -nd 144 -in mno.pwi > mno.pwo 

@@ -21,6 +21,7 @@
    hubbard_u(3)     = 5.749
    hubbard_u(4)     = 5.7551
    hubbard_u(6)     = 3.0
+   starting_charge(1) = 1
    ntyp             = 7
    nat              = 40
    ibrav            = 0
@@ -46,7 +47,7 @@ O1 15.999 O.pbesol-n-rrkjus_psl.1.0.0.UPF
 Sr 87.62 Sr.pbesol-spn-rrkjus_psl.1.0.0.UPF
 
 K_POINTS automatic
-8 8 8  0 0 0
+6 6 6  0 0 0
 
 CELL_PARAMETERS angstrom
 7.68037000000000 0.00000000000000 0.00000000000000
