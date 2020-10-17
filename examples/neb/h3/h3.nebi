@@ -1,0 +1,74 @@
+BEGIN
+
+BEGIN_PATH_INPUT
+&PATH
+    restart_mode     = 'from_scratch'
+   string_method    = 'neb'
+   nstep_path       = 20
+   ds               = 2.0
+   opt_scheme       = 'broyden'
+   num_of_images    = 7
+   k_max            = 0.3
+   k_min            = 0.2
+   CI_scheme        = 'auto'
+   path_thr         = 0.1
+/ 
+CLIMBING_IMAGES
+    5
+END_PATH_INPUT
+
+BEGIN_ENGINE_INPUT
+&CONTROL
+   calculation      = 'relax'
+   verbosity        = 'high'
+   prefix           = 'h3'
+/
+&SYSTEM
+   starting_magnetization = 0.5
+   ecutwfc          = 20.0
+   ecutrho          = 100.0
+   occupations      = 'smearing'
+   degauss          = 0.03
+   smearing         = 'gaussian'
+   nspin            = 2
+   ntyp             = 1
+   nat              = 3
+   ibrav            = 0
+/
+&ELECTRONS
+   conv_thr         = 1e-08
+   mixing_beta      = 0.3
+/
+&IONS
+/
+&CELL
+/
+
+ATOMIC_SPECIES
+H 1.008 H.pbe-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+1 1 1  0 0 0
+
+CELL_PARAMETERS angstrom
+12.00000020915167 0.00000000000000 0.00000000000000
+0.00000000000000 5.00000408714660 0.00000000000000
+0.00000000000000 0.00000000000000 5.00000408714660
+
+
+BEGIN_POSITIONS
+
+FIRST_IMAGE
+ATOMIC_POSITIONS angstrom
+H 0.0000000000 0.0000000000 0.0000000000  0 0 0
+H 0.7561804200 0.0000000000 0.0000000000 
+H 3.0000000000 0.0000000000 0.0000000000  0 0 0
+
+LAST_IMAGE
+ATOMIC_POSITIONS angstrom
+H 0.0000000000 0.0000000000 0.0000000000  0 0 0
+H 2.2438195800 0.0000000000 0.0000000000 
+H 3.0000000000 0.0000000000 0.0000000000  0 0 0
+END_POSITIONS
+END_ENGINE_INPUT
+END

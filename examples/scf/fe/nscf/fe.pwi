@@ -1,0 +1,37 @@
+&CONTROL
+   calculation      = 'nscf'
+   verbosity        = 'high'
+   restart_mode     = 'from_scratch'
+   prefix           = 'fe'
+/
+&SYSTEM
+   ecutwfc          = 40.0
+   ecutrho          = 302.0
+   occupations      = 'tetrahedra'
+   ntyp             = 1
+   nat              = 1
+   ibrav            = 0
+/
+&ELECTRONS
+   conv_thr         = 1e-08
+   mixing_beta      = 0.3
+   startingwfc      = 'atomic+random'
+/
+&IONS
+/
+&CELL
+/
+
+ATOMIC_SPECIES
+Fe 55.845 Fe.pbe-spn-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+10 10 10  0 0 0
+
+CELL_PARAMETERS angstrom
+-1.43499935993232 1.43499935993232 1.43499935993232
+1.43499935993232 -1.43499935993232 1.43499935993232
+1.43499935993232 1.43499935993232 -1.43499935993232
+
+ATOMIC_POSITIONS angstrom
+Fe 0.0000000000 0.0000000000 0.0000000000 

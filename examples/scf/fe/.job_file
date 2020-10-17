@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --job-name=fe 
+#SBATCH --output=fe.out
+#SBATCH --error=fe.err
+#SBATCH --wait
+#SBATCH --time=0:10:00
+#SBATCH --mem-per-cpu=5G
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --account=dcb
+#SBATCH --partition=all
+None 
+mpirun -n 4 pw.x  -in fe.pwi > fe.pwo 

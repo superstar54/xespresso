@@ -5,9 +5,13 @@ For the introduction of ASE , please visit https://wiki.fysik.dtu.dk/ase/index.h
 
 
 ### Functions:
+* Support all QE packages, including: pw, band, neb, dos, projwfc, pp ...
+* Spin-polarized calculation
+* LD(S)A+U
 * Automatic submit job
 * Automatic set up "nscf" calculation
-* Plot pdos
+* Read and plot dos, pdos and layer resolved pdos
+* Plot NEB
 
 ### Author
 * Xing Wang  <xingwang1991@gmail.com>
@@ -23,7 +27,8 @@ Clone this repo. Add it to your PYTHONPATH and PATH. On windows, you can edit th
 
 ``` sh
 export PYTHONPATH="Your-Location":$PYTHONPATH
-export ASE_ESPRESSO_COMMAND="/path/to/PACKAGE.x PARALLEL -in PREFIX.PACKAGEi > PREFIX.PACKAGEo"
+export ASE_ESPRESSO_COMMAND="/path/to/PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo"
+export ESPRESSO_PSEUDO="/path/to/pseudo"
 ```
 
 
@@ -31,36 +36,15 @@ export ASE_ESPRESSO_COMMAND="/path/to/PACKAGE.x PARALLEL -in PREFIX.PACKAGEi > P
 
 #### Automatic submit job
 
-A example of setting parameters for the queue.
+A example of setting parameters for the queue. See example/queue.py
 
 ``` python
-#!/usr/bin/env python3
-from ase.build import bulk
-from xespresso import XEspresso
-atoms = bulk('Fe', cubic = 'True')
-input_data = {
-'calculate': 'scf',
-'verbosity': 'high', 
-'ecutwfc': 40.0,
-'ecutrho': 320.0,
-'occupations': 'smearing',
-'smearing': 'gaussian',
-'degauss': 0.01,
-'nspin': 2,
-}
 queue = {'nodes': 1, 
          'ntasks-per-node': 4, 
 		 'account': 'dcb', 
 		 'partition': 'all', 
 		 'time': '0:10:00'}
-pseudopotentials = {'Fe': 'Fe.pbe-spn-kjpaw_psl.1.0.0.UPF'}
-calc = XEspresso(pseudopotentials = pseudopotentials, 
-				 queue = queue,
-				 label  = 'scf/fe',
-				 input_data = input_data, kpts=(8, 8, 8))
-atoms.set_calculator(calc)
-e = atoms.get_potential_energy()
-print('Energy: ', e)
+calc = Espresso(queue = queue)
 ```
 
 #### Add new species
@@ -69,26 +53,21 @@ Some atoms are special:
 + atoms with different U values
 + atoms with special basis set
 
-For example, Fe with spin state AFM:
+For example, Fe with spin state AFM. See example/spin.py
 
 ``` python
-atoms = bulk('Fe', cubic=True)
 atoms.arrays['species'] = atoms.get_chemical_symbols()
-atoms.arrays['species'][0] = 'Fe1'
-atoms.arrays['species'][1] = 'Fe2'
+atoms.arrays['species'][1] = 'Fe1'
 ```
 
 #### Setting parameters with "(i), i=1,ntyp"
-Hubbard, starting_magnetization, starting_charge...
+Hubbard, starting_magnetization, starting_charge and so on. See example/dft+u.py
 
 ``` python
 input_ntyp = {
 'starting_magnetization': {'Fe1': 1.0, 'Fe2': -1.0},
 'Hubbard_U': {'Fe1': 3.0, 'Fe2': 3.0},
 }
-```
-then add input_ntyp into input_data.
-``` python
 input_data['input_ntyp'] = input_ntyp,
 ```
 
@@ -136,4 +115,20 @@ calc.read_results()
 atoms = calc.results['atoms']       
 calc.run(atoms = atoms, restart = 1)
 ```
+
+#### NEB calculation
+See example/neb.py
+``` python
+from xespresso.neb import NEBEspresso
+calc = NEBEspresso(
+                 package = 'neb',
+                 images = images,
+                 climbing_images = [5],
+                 path_data = path_data
+				 )
+calc.calculate()
+calc.read_results()
+calc.plot()
+```
+<img src="examples/figs/neb.png" width="500"/>
 

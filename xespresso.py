@@ -35,7 +35,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     command = 'pw.x -in PREFIX.pwi > PREFIX.pwo'
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', atoms=None, package = 'pw', parallel = None,
+                 label='xespresso', atoms=None, package = 'pw', parallel = '',
                  queue = None,
                  **kwargs):
         """
@@ -123,7 +123,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
-    def set_queue(self, package = 'pw', parallel = None, queue = None):
+    def set_queue(self, package = 'pw', parallel = '', queue = None):
         '''
         If queue, change command to "sbatch .job_file".
         The queue information are written into '.job_file'
@@ -144,8 +144,9 @@ class Espresso(ase.calculators.espresso.Espresso):
         if queue:
             # Write the job file
             xespressorc['queue'].update(queue)
-            jobname = '%s-%s-%s' %(self.prefix, package, 
-                self.parameters['input_data']['calculation'])
+            jobname = self.prefix
+            # jobname = '%s-%s-%s' %(self.prefix, package, 
+                # self.parameters['input_data']['calculation'])
             with open('%s/.job_file' % self.directory, 'w') as fh:
                 fh.writelines("#!/bin/bash\n")
                 fh.writelines("#SBATCH --job-name=%s \n" % jobname)
@@ -274,7 +275,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         '''
         if not restart:
             try:
-                atoms.get_potential_energy()
+                self.calculate()
             except:
                 print('Not converge.')
         converged, fromfile, meg0 = self.read_convergence()
@@ -326,7 +327,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         if flag:
             shutil.copy(src, new_src)
         return 0
-    def nscf(self, run_type = 'dos', package = None, queue = False, kpts = (10, 10, 10), **kwargs):
+    def nscf(self, run_type = 'dos', package = None, queue = False, parallel = '', kpts = (10, 10, 10), **kwargs):
         import copy
         # save scf parameters
         if not self.scf_directory:
@@ -369,7 +370,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.label = os.path.join(self.directory, self.prefix)
         if not package:
             package = self.package
-        self.set_queue(package, queue)
+        self.set_queue(package, parallel, queue)
     def nscf_calculate(self, ):
         import shutil
         if not os.path.exists(self.save_directory):
@@ -400,6 +401,32 @@ class Espresso(ase.calculators.espresso.Espresso):
                     t += float(line.split('CPU')[1].split('s WALL')[0])
         self.results['time'] = t
         return t
+    def neb(self, queue = False, package = 'neb', **kwargs):
+        package_parameters = {
+            'PATH': {'string_method', 'restart_mode', 'nstep_path', 'num_of_images', 
+            'opt_scheme', 'CI_scheme', 'first_last_opt', 'minimum_image', 'temp_req', 
+            'ds', 'k_max', 'k_min', 'path_thr', 'use_masses', 'use_freezing', 
+            'lfcpopt', 'fcp_mu', 'fcp_tot_charge_first', 'fcp_tot_charge_last', },
+        }
+        kwargs['prefix'] = self.prefix
+        self.set_queue(package, queue)
+        command = self.command
+        print('running %s'%package)
+        print(command)
+        try:
+            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
+        except OSError as err:
+            msg = 'Failed to execute "{}"'.format(command)
+            raise EnvironmentError(msg) from err
+
+        errorcode = proc.wait()
+
+        if errorcode:
+            path = os.path.abspath(self.directory)
+            msg = ('Calculator "{}" failed with command "{}" failed in '
+                   '{} with error code {}'.format(self.name, command,
+                                                  path, errorcode))
+            raise CalculationFailed(msg)
     def post(self, queue = False, package = 'dos', **kwargs):
         '''
         '''
@@ -456,7 +483,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                     if key in parameters:
                         f.write('  %s = %s, \n' %(key, value))
                 f.write('/ \n')
-        self.set_queue(package, queue)
+        self.set_queue(package, '', queue)
         command = self.command
         print('running %s'%package)
         print(command)

@@ -42,11 +42,6 @@ def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
     #
     if edir:
         inp.update(dipole_correction(atoms, edir))
-    if lda_plus_u:
-        print(atoms)
-        assert atoms, "Please add the atoms which needs plus + u"
-        inp.update(plusu(atoms, lda_plus_u))
-
         
     return inp
 def dipole_correction(atoms, edir):
@@ -59,19 +54,6 @@ def dipole_correction(atoms, edir):
           }
     emaxpos = max(atoms.positions[:, edir - 1] + atoms.cell[edir - 1][edir - 1])/2.0/atoms.cell[edir - 1][edir - 1]
     inp['emaxpos'] = emaxpos
-    return inp
-def plusu(atoms, lda_plus_u):
-    from collections import OrderedDict
-    inp = {}
-    symbols = atoms.get_chemical_symbols()
-    symbols = list(OrderedDict.fromkeys(symbols))
-    tags = atoms.get_tags()
-    for i in range(len(symbols)):
-        ele = symbols[i]
-        if 
-        if ele in lda_plus_u:
-            inp['lda_plus_u'] = True
-            inp['Hubbard_U({0})'.format(i + 1)] = lda_plus_u[ele]
     return inp
 
 # tools

@@ -1,0 +1,14 @@
+ &PATH
+ restart_mode     = 'from_scratch'
+ string_method    = 'neb'
+ nstep_path       = 20
+ ds               = 2.0
+ opt_scheme       = 'broyden'
+ num_of_images    = 7
+ k_max            = 0.3
+ k_min            = 0.2
+ CI_scheme        = 'auto'
+ path_thr         = 0.1
+ /
+ CLIMBING_IMAGES
+ 5
