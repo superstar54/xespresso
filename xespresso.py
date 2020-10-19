@@ -37,6 +37,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     def __init__(self, restart=None, ignore_bad_restart_file=False,
                  label='xespresso', atoms=None, package = 'pw', parallel = '',
                  queue = None,
+                 xc = 'pbe', pseudo = 'kjpaw',
                  **kwargs):
         """
         All options for pw.x are copied verbatim to the input file, and put
@@ -107,6 +108,8 @@ class Espresso(ase.calculators.espresso.Espresso):
 
 
         """
+        if 'input_data' not in kwargs:
+            kwargs['input_data'] = {}
         ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
                                   label, atoms, **kwargs)
         self.calc = None
@@ -114,8 +117,6 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.atoms = atoms
         self.directory = os.path.split(label)[0]
         self.prefix = os.path.split(label)[1]
-        if 'input_data' in kwargs:
-            kwargs['input_data']['prefix'] = self.prefix
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
         self.set_queue(package, parallel, queue)
         self.package = package
@@ -401,32 +402,6 @@ class Espresso(ase.calculators.espresso.Espresso):
                     t += float(line.split('CPU')[1].split('s WALL')[0])
         self.results['time'] = t
         return t
-    def neb(self, queue = False, package = 'neb', **kwargs):
-        package_parameters = {
-            'PATH': {'string_method', 'restart_mode', 'nstep_path', 'num_of_images', 
-            'opt_scheme', 'CI_scheme', 'first_last_opt', 'minimum_image', 'temp_req', 
-            'ds', 'k_max', 'k_min', 'path_thr', 'use_masses', 'use_freezing', 
-            'lfcpopt', 'fcp_mu', 'fcp_tot_charge_first', 'fcp_tot_charge_last', },
-        }
-        kwargs['prefix'] = self.prefix
-        self.set_queue(package, queue)
-        command = self.command
-        print('running %s'%package)
-        print(command)
-        try:
-            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
-        except OSError as err:
-            msg = 'Failed to execute "{}"'.format(command)
-            raise EnvironmentError(msg) from err
-
-        errorcode = proc.wait()
-
-        if errorcode:
-            path = os.path.abspath(self.directory)
-            msg = ('Calculator "{}" failed with command "{}" failed in '
-                   '{} with error code {}'.format(self.name, command,
-                                                  path, errorcode))
-            raise CalculationFailed(msg)
     def post(self, queue = False, package = 'dos', **kwargs):
         '''
         '''

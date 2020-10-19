@@ -22,20 +22,11 @@ from ase.units import create_units
 from ase.io.espresso import construct_namelist, grep_valence, SSSP_VALENCE
 
 
-def write_espresso_in(filename, atoms, input_data=None, pseudopotentials=None,
+def write_espresso_in(filename, atoms, input_data={}, pseudopotentials=None,
                       kspacing=None, kpts=None, koffset=(0, 0, 0),
                       crystal_coordinates=False, **kwargs):
     """
     Create an input file for pw.x.
-
-    Use set_initial_magnetic_moments to turn on spin, if ispin is set to 2
-    with no magnetic moments, they will all be set to 0.0. Magnetic moments
-    will be converted to the QE units (fraction of valence electrons) using
-    any pseudopotential files found, or a best guess for the number of
-    valence electrons.
-
-    Units are not converted for any other input data, so use Quantum ESPRESSO
-    units (Usually Ry or atomic units).
 
     Keys with a dimension (e.g. Hubbard_U(1)) will be incorporated as-is
     so the `i` should be made to match the output.
@@ -105,7 +96,6 @@ def write_espresso_in(filename, atoms, input_data=None, pseudopotentials=None,
 
     # Construct input file into this
     pwi = []
-
     # atomic_species
     atomic_species_str, species_info = build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentials)
     # sections
@@ -114,7 +104,7 @@ def write_espresso_in(filename, atoms, input_data=None, pseudopotentials=None,
     # Pseudopotentials
     pwi.extend(atomic_species_str)
     # KPOINTS - add a MP grid as required
-    pwi.extend(build_kpts_str(kspacing, kpts, koffset))
+    pwi.extend(build_kpts_str(atoms, kspacing, kpts, koffset))
     # CELL block, if required
     pwi.extend(build_cell_str(atoms, input_parameters))
     # Positions - already constructed, but must appear after namelist
@@ -128,6 +118,8 @@ def write_espresso_in(filename, atoms, input_data=None, pseudopotentials=None,
     return engine_str
 
 def build_section_str(atoms, species_info, input_parameters):
+    '''
+    '''
     # Add computed parameters
     # different magnetisms means different types
     input_parameters['system']['ntyp'] = len(species_info)
@@ -164,6 +156,8 @@ def build_section_str(atoms, species_info, input_parameters):
     return section_str, input_parameters
 
 def build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentials):
+    '''
+    '''
     # Deal with pseudopotentials
     # Look in all possible locations for the pseudos and try to figure
     # out the number of valence electrons
@@ -218,6 +212,8 @@ def build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentia
               
 
 def build_cell_str(atoms, input_parameters):
+    '''
+    '''
     # CELL block, if required
     if input_parameters['SYSTEM']['ibrav'] == 0:
         cell_str = ['CELL_PARAMETERS angstrom\n']
@@ -227,7 +223,9 @@ def build_cell_str(atoms, input_parameters):
                    ''.format(cell=atoms.cell))
         cell_str.append('\n')
     return cell_str
-def build_kpts_str(kspacing, kpts, koffset):
+def build_kpts_str(atoms, kspacing, kpts, koffset):
+    '''
+    '''
     # KPOINTS - add a MP grid as required
     if kspacing is not None:
         kgrid = kspacing_to_grid(atoms, kspacing)
@@ -268,6 +266,9 @@ def build_kpts_str(kspacing, kpts, koffset):
     return kpts_str
 
 def build_atomic_positions_str(atoms, crystal_coordinates):
+    '''
+
+    '''
     if 'species' not in atoms.arrays:
         atoms.arrays['species'] = atoms.get_chemical_symbols()
     # Convert ase constraints to QE constraints
@@ -308,8 +309,21 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
 def write_neb_in(filename, images, climbing_images, path_data = None, input_data=None, pseudopotentials=None,
                       kspacing=None, kpts=None, koffset=(0, 0, 0),
                       crystal_coordinates=False, **kwargs):
-    '''
-    '''
+    """
+    Create an input file for neb.x.
+
+    Parameters
+    ----------
+    filename: str
+        A file to write the input file to.
+    images: list
+        A list of atomistic configuration including the first, last 
+        and intermedinate positions.
+    climbing_images: list
+        Indices of the images which the Climbing-Image procedure apply
+    path_data: dict
+        A flat or nested dictionary with path parameters for neb.x
+    """
     nebi = ['BEGIN\n']
     package_parameters = {
             'PATH': {'string_method', 'restart_mode', 'nstep_path', 'num_of_images', 
@@ -363,5 +377,3 @@ def write_neb_in(filename, images, climbing_images, path_data = None, input_data
     nebi.append('END\n')
     with open(filename, 'w') as fd:
         fd.write(''.join(nebi))
-    # begin
-    # begin path
