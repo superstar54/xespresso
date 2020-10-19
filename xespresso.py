@@ -108,17 +108,21 @@ class Espresso(ase.calculators.espresso.Espresso):
 
 
         """
+        
+        
+        
+        self.directory = os.path.split(label)[0]
+        self.prefix = os.path.split(label)[1]
         if 'input_data' not in kwargs:
             kwargs['input_data'] = {}
+        kwargs['input_data']['prefix'] = self.prefix
         ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
                                   label, atoms, **kwargs)
         self.calc = None
         if atoms:
-            self.atoms = atoms
-        self.directory = os.path.split(label)[0]
-        self.prefix = os.path.split(label)[1]
+            self.atoms = atoms                                
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
-        self.set_queue(package, parallel, queue)
+        self.set_queue(package = package, parallel = '', queue = queue)
         self.package = package
         self.parallel = parallel
         self.scf_directory = None
@@ -346,24 +350,23 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.parameters['kpts'] = kpts
         kwargs['verbosity'] = 'high'
         # nscf or bands
-        self.parameters['input_data']['restart_mode'] = 'from_scratch'
-        self.parameters['input_data']['startingwfc'] = 'atomic+random'
+        self.parameters['restart_mode'] = 'restart'
         if run_type.upper() == 'BANDS':
             kwargs['calculation'] = 'bands'
         elif run_type.upper() == 'DOS':
             kwargs['calculation'] = 'nscf'
-            self.parameters['input_data']['occupations'] = 'tetrahedra'
+            # self.parameters['occupations'] = 'tetrahedra'
             for key in ['smearing', 'degauss']:
-                if key in self.parameters['input_data']:
-                    del self.parameters['input_data'][key]
+                if key in self.parameters:
+                    del self.parameters[key]
         elif run_type.upper() == 'LBERRY':
             kwargs['calculation'] = 'nscf'
-            self.parameters['input_data']['occupations'] = 'fixed'
+            self.parameters['occupations'] = 'fixed'
             for key in ['smearing']:
-                if key in self.parameters['input_data']:
-                    del self.parameters['input_data'][key]
+                if key in self.parameters:
+                    del self.parameters[key]
         for key, value in kwargs.items():
-            self.parameters['input_data'][key] = value
+            self.parameters[key] = value
         # create working directory
         self.save_directory_old = self.save_directory
         self.directory = os.path.join(self.scf_directory, '%s/'%(kwargs['calculation']))
@@ -371,7 +374,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.label = os.path.join(self.directory, self.prefix)
         if not package:
             package = self.package
-        self.set_queue(package, parallel, queue)
+        self.set_queue(package = package, parallel = parallel, queue = queue)
     def nscf_calculate(self, ):
         import shutil
         if not os.path.exists(self.save_directory):
@@ -383,11 +386,11 @@ class Espresso(ase.calculators.espresso.Espresso):
         for file in files:
             file = os.path.join(self.save_directory_old, '%s'%file)
             if os.path.exists(file):
-                print(file)
+                # print(file)
                 shutil.copy(file, self.save_directory)
         print('-'*30)
         print('\n {0} calculation in {1} ......'.format(
-                    self.parameters['input_data']['calculation'], 
+                    self.parameters['calculation'], 
                     self.directory))
         self.calculate()
         # self.read_results()
@@ -458,7 +461,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                     if key in parameters:
                         f.write('  %s = %s, \n' %(key, value))
                 f.write('/ \n')
-        self.set_queue(package, '', queue)
+        self.set_queue(package = package, parallel = '', queue = queue)
         command = self.command
         print('running %s'%package)
         print(command)
@@ -512,6 +515,21 @@ class Espresso(ase.calculators.espresso.Espresso):
         wf = np.average(axy[ind]) - ef
         print('min: %s, max: %s'%(pos, pos + 3))
         print('The workfunction is {0:1.2f} eV'.format(wf))
+    def get_bader_charge(self, inpfile = None):
+        '''
+        '''
+        if not inpfile:
+            inpfile = '%s.cube' %self.prefix
+        command = 'bader %s'%inpfile
+        print(command)
+        try:
+            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
+        except OSError as err:
+            msg = 'Failed to execute "{}"'.format(command)
+            raise EnvironmentError(msg) from err
+        acf = os.path.join(self.directory, 'ACF.dat')
+
+
     def clean(self):
         '''
         remove wfc, hub files

@@ -6,7 +6,7 @@ xespressorc = {
     'queue':{
           # 'account': 'dcb',
           'time': '23:59:00',
-          'mem-per-cpu': '5G',
+        #   'mem-per-cpu': '5G',
           'nodes': '1',
           #'ntasks-per-node': '20',
           'cpus-per-task': '1',
