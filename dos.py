@@ -328,8 +328,21 @@ class DOS:
             plt.savefig('%s' %output)
         # view(images)
         return axs, images
-
-
+    def get_pdos(self, species, orbital):
+        dos = self.pdos_kinds[species][orbital]
+        return self.pdos_energies, dos
+    def get_d_band_center(sef, species = None, orbital = 'd'):
+        pdos_kinds
+        energies, dos = self.get_pdos(species, orbital)
+        Nstates = np.trapz(dos, energies)
+        occupied = energies <= 0.0
+        N_occupied_states = np.trapz(dos[occupied], energies[occupied])
+        # first moment
+        ed = np.trapz(energies * dos, energies) / Nstates
+        # second moment
+        wd2 = np.trapz(energies**2 * dos, energies) / Nstates
+        return d_center, d_width
+    
 def compare_pdos(dos1, index1, dos2, index2):
     '''
     '''

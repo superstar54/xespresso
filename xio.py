@@ -97,9 +97,9 @@ def write_espresso_in(filename, atoms, input_data={}, pseudopotentials=None,
     # Construct input file into this
     pwi = []
     # atomic_species
-    atomic_species_str, species_info = build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentials)
+    atomic_species_str, species_info, total_valence = build_atomic_species_str(atoms, input_parameters, pseudopotentials)
     # sections
-    section_str, input_parameters = build_section_str(atoms, species_info, input_parameters)
+    section_str, input_parameters = build_section_str(atoms, species_info, input_data, input_parameters)
     pwi.extend(section_str)
     # Pseudopotentials
     pwi.extend(atomic_species_str)
@@ -117,7 +117,7 @@ def write_espresso_in(filename, atoms, input_data={}, pseudopotentials=None,
     # return section_str, atomic_species_str, kpts_str, cell_str, atomic_positions_str
     return engine_str
 
-def build_section_str(atoms, species_info, input_parameters):
+def build_section_str(atoms, species_info, input_data, input_parameters):
     '''
     '''
     # Add computed parameters
@@ -125,6 +125,13 @@ def build_section_str(atoms, species_info, input_parameters):
     input_parameters['system']['ntyp'] = len(species_info)
     input_parameters['system']['nat'] = len(atoms)
 
+    #
+    if 'input_ntyp' in input_data:
+        for key, value in input_data['input_ntyp'].items():
+            for species in value:
+                if species in species_info:
+                    mag_str = '{0}({1})'.format(key, species_info[species]['index'])
+                    input_parameters['system'][mag_str] = value[species]
     # Use cell as given or fit to a specific ibrav
     if 'ibrav' in input_parameters['system']:
         ibrav = input_parameters['system']['ibrav']
@@ -155,7 +162,7 @@ def build_section_str(atoms, species_info, input_parameters):
     section_str.append('\n')
     return section_str, input_parameters
 
-def build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentials):
+def build_atomic_species_str(atoms, input_parameters, pseudopotentials):
     '''
     '''
     # Deal with pseudopotentials
@@ -187,12 +194,10 @@ def build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentia
             species_info[species]['index'] = ntyp
             species_info[species]['mass'] = atoms[i].mass
             species_info[species]['element'] = atoms[i].symbol
-    if 'input_ntyp' in input_data:
-        for key, value in input_data['input_ntyp'].items():
-            for species in value:
-                if species in species_info:
-                    mag_str = '{0}({1})'.format(key, species_info[species]['index'])
-                    input_parameters['system'][mag_str] = value[species]
+            species_info[species]['count'] = 1
+        else:
+            species_info[species]['count'] += 1
+    total_valence = 0
     for species in species_info:
         pseudo = pseudopotentials.get(species, '{}_dummy.UPF'.format(species))
         for pseudo_dir in pseudo_dirs:
@@ -203,12 +208,13 @@ def build_atomic_species_str(atoms, input_data, input_parameters, pseudopotentia
             valence = SSSP_VALENCE[atomic_numbers[species_info[species]['element']]] 
         species_info[species]['pseudo'] = pseudo,
         species_info[species]['valence'] = valence
+        total_valence += valence*species_info[species]['count']
         atomic_species_str.append(
             '{species} {mass} {pseudo}\n'.format(
                 species=species, mass=species_info[species]['mass'],
                 pseudo=pseudo))
     atomic_species_str.append('\n')
-    return atomic_species_str, species_info
+    return atomic_species_str, species_info, total_valence
               
 
 def build_cell_str(atoms, input_parameters):

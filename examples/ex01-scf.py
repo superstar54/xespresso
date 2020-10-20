@@ -24,7 +24,8 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 input_data = input_data, 
                 kpts=(6, 6, 6))
 atoms.calc = calc
-e = atoms.get_potential_energy()
+# e = atoms.get_potential_energy()
+calc.read_results()
 print('Energy: {0:1.3f}'.format(e))
 
 '''

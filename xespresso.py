@@ -332,10 +332,11 @@ class Espresso(ase.calculators.espresso.Espresso):
         if flag:
             shutil.copy(src, new_src)
         return 0
-    def nscf(self, run_type = 'dos', package = None, queue = False, parallel = '', kpts = (10, 10, 10), **kwargs):
+    def nscf(self, calculation = 'nscf', package = None, queue = False, parallel = '', kpts = (10, 10, 10), **kwargs):
         import copy
         # save scf parameters
         if not self.scf_directory:
+            print(self.directory)
             self.scf_directory = self.directory
         if not self.scf_parameters:
             self.scf_parameters = copy.deepcopy(self.parameters)
@@ -344,32 +345,16 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.efermi = self.get_fermi_level()
         # read new atoms from results and set magmoms
         self.atoms = self.results['atoms']
-        if 'magmoms' in self.results:
-            self.atoms.set_initial_magnetic_moments(self.results['magmoms'])
         self.parameters = copy.deepcopy(self.scf_parameters)
         self.parameters['kpts'] = kpts
-        kwargs['verbosity'] = 'high'
-        # nscf or bands
+        self.parameters['calculation'] = calculation
+        self.parameters['verbosity'] = 'high'
         self.parameters['restart_mode'] = 'restart'
-        if run_type.upper() == 'BANDS':
-            kwargs['calculation'] = 'bands'
-        elif run_type.upper() == 'DOS':
-            kwargs['calculation'] = 'nscf'
-            # self.parameters['occupations'] = 'tetrahedra'
-            for key in ['smearing', 'degauss']:
-                if key in self.parameters:
-                    del self.parameters[key]
-        elif run_type.upper() == 'LBERRY':
-            kwargs['calculation'] = 'nscf'
-            self.parameters['occupations'] = 'fixed'
-            for key in ['smearing']:
-                if key in self.parameters:
-                    del self.parameters[key]
         for key, value in kwargs.items():
             self.parameters[key] = value
         # create working directory
-        self.save_directory_old = self.save_directory
-        self.directory = os.path.join(self.scf_directory, '%s/'%(kwargs['calculation']))
+        self.save_directory_old = os.path.join(self.scf_directory, '%s.save'%self.prefix)
+        self.directory = os.path.join(self.scf_directory, '%s/'%calculation)
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
         self.label = os.path.join(self.directory, self.prefix)
         if not package:
@@ -382,7 +367,6 @@ class Espresso(ase.calculators.espresso.Espresso):
         files = ['charge-density.hdf5', 'charge-density.dat', 'data-file-schema.xml', 'paw.txt', 'occup.txt']
         for species, pseudo in self.parameters['pseudopotentials'].items():
             files.append(pseudo)
-        print(self.save_directory)
         for file in files:
             file = os.path.join(self.save_directory_old, '%s'%file)
             if os.path.exists(file):

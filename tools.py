@@ -1,13 +1,21 @@
 import os
 from ase.geometry import get_layers
 from ase.constraints import FixAtoms
-from ase.io.espresso import read_espresso_in, read_fortran_namelist
+from ase.io.espresso import read_espresso_in, read_fortran_namelist, construct_namelist
 from xespresso import Espresso
+from xespresso.xio import build_atomic_species_str
 from ase.dft.bandgap import bandgap
 import pickle
 import multiprocessing
 import numpy as np
 #====================================================
+def get_nbnd(atoms = None, scale = 1.2, pseudopotentials = {}, nspin = 1, input_data = {}):
+    input_parameters = construct_namelist(input_data)
+    atomic_species_str, species_info, total_valence = build_atomic_species_str(atoms, input_parameters, pseudopotentials)
+    nbnd = int(total_valence/(2.0/nspin))
+    nbnd_scale = int(nbnd*scale)
+    print(' total valence: %s\n nbnd: %s\n scaled nbnd: %s'%(total_valence, nbnd, nbnd_scale))
+    return nbnd
 def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
     nspin = 1, lda_plus_u = False, slab = False,
     edir = False, atoms = None):

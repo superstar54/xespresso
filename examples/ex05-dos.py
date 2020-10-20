@@ -2,6 +2,7 @@ from ase.build import bulk
 from ase.visualize import view
 from xespresso import Espresso
 from xespresso.dos import DOS
+from xespresso.tools import get_nbnd
 import matplotlib.pyplot as plt
 
 # build Fe
@@ -21,9 +22,12 @@ input_data = {
 pseudopotentials = {
 'Fe': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',
 }
+nbnd = get_nbnd(atoms = atoms, scale = 1.4, pseudopotentials = pseudopotentials, nspin = 2)
+nbnd = int(nbnd*1.2)
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 label  = 'scf/fe/fe',      # 'scf/fe' is the directory, 'fe' is the prefix
                 input_data = input_data, 
+                nbnd = nbnd,
                 kpts=(6, 6, 6))
 atoms.calc = calc
 # e = atoms.get_potential_energy()
@@ -32,20 +36,20 @@ atoms.calc = calc
 
 #===============================================================
 # start nscf calculation, and dos, projwfc
-calc.read_results()
-fermi = calc.get_fermi_level()
-# nscf calculation
-calc.nscf(kpts=(10, 10, 10))
-calc.nscf_calculate()
-calc.read_results()
-# post calculation
-calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-# DOS analysis
-dos = DOS(calc, dos = True, pdos = True)
-dos.read_pdos()
-dos.plot_dos()
-plt.show()
+# calc.read_results()
+# fermi = calc.get_fermi_level()
+# # nscf calculation
+# calc.nscf(kpts=(10, 10, 10))
+# calc.nscf_calculate()
+# calc.read_results()
+# # post calculation
+# calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+# calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+# # DOS analysis
+# dos = DOS(calc, dos = True, pdos = True)
+# dos.read_pdos()
+# dos.plot_dos()
+# plt.show()
 #
 
 '''

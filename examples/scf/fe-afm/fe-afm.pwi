@@ -9,10 +9,10 @@
    degauss          = 0.03
    smearing         = 'gaussian'
    nspin            = 2
-   starting_magnetization(1) = 1.0
-   starting_magnetization(2) = -1.0
    ntyp             = 2
    nat              = 2
+   starting_magnetization(1) = 1.0
+   starting_magnetization(2) = -1.0
    ibrav            = 0
 /
 &ELECTRONS
