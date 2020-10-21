@@ -3,8 +3,8 @@
    prefix           = 'fe-afm'
 /
 &SYSTEM
-   ecutwfc          = 40.0
-   ecutrho          = 320.0
+   ecutwfc          = 30.0
+   ecutrho          = 200.0
    occupations      = 'smearing'
    degauss          = 0.03
    smearing         = 'gaussian'
@@ -29,7 +29,7 @@ Fe 55.845 Fe.pbe-spn-rrkjus_psl.1.0.0.UPF
 Fe1 55.845 Fe.pbe-spn-rrkjus_psl.1.0.0.UPF
 
 K_POINTS automatic
-6 6 6  0 0 0
+4 4 4  0 0 0
 
 CELL_PARAMETERS angstrom
 2.87000000000000 0.00000000000000 0.00000000000000

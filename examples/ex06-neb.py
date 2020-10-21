@@ -5,7 +5,7 @@ from ase.atoms import Atoms
 from ase.constraints import FixAtoms, FixCartesian
 from ase.visualize import view
 from xespresso import Espresso
-from xespresso.neb import NEBEspresso
+from xespresso.neb import NEBEspresso, interpolate
 
 #=============================================================
 # first optmize the inital and final structure
@@ -39,7 +39,7 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                  label  = 'relax/initial/initial',
                  input_data = input_data, kpts=(1, 1, 1))
 atoms.calc = calc
-# atoms.get_potential_energy()
+atoms.get_potential_energy()
 calc.read_results()
 print('Initial energy: %s'%calc.results['energy'])
 
@@ -51,6 +51,9 @@ initial = calc.results['atoms']
 final = initial.copy()
 final.positions[1] = [3.0 - final[1].x, 0, 0]
 images = [initial, final]
+# view images before neb calculation
+view(interpolate(images, 10))
+
 # view(images)
 #
 path_data = {
@@ -69,7 +72,8 @@ path_data = {
 # print(queue)
 calc = NEBEspresso(pseudopotentials = pseudopotentials, 
                  package = 'neb',
-                #  queue = queue,
+                 queue = queue,
+                 parallel = '-ni 4',
                  images = images,
                  climbing_images = [5],
                  label  = 'neb/h3/h3',
@@ -77,7 +81,7 @@ calc = NEBEspresso(pseudopotentials = pseudopotentials,
                  path_data = path_data,
                  kpts=(1, 1, 1))
 #
-# calc.calculate()
+calc.calculate()
 calc.read_results()
 calc.plot()
 

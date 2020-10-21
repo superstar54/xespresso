@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH --job-name=ter-1 
+#SBATCH --output=ter-1.out
+#SBATCH --error=ter-1.err
+#SBATCH --wait
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=20
+#SBATCH --partition=empi
+#SBATCH --time=23:59:00
+ 
+mpirun -n 4 pw.x  -in ter-1.pwi > ter-1.pwo 

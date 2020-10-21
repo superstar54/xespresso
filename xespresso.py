@@ -11,12 +11,15 @@ from ase import io
 from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent, CalculationFailed
 import ase.calculators.espresso
 from xespresso.xio import write_espresso_in
-from xespresso.xespressorc import xespressorc
 import os
 import shutil
 import numpy as np
 import pickle
 from datetime import datetime
+
+config_files = [os.path.join(os.environ['HOME'], '.xespressorc'),
+            '.xespressorc']
+
 
 
 error_template = 'Property "%s" not available. Please try running Quantum\n' \
@@ -36,9 +39,7 @@ class Espresso(ase.calculators.espresso.Espresso):
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
                  label='xespresso', atoms=None, package = 'pw', parallel = '',
-                 queue = None,
-                 xc = 'pbe', pseudo = 'kjpaw',
-                 **kwargs):
+                 queue = None, **kwargs):
         """
         All options for pw.x are copied verbatim to the input file, and put
         into the correct section. Use ``input_data`` for parameters that are
@@ -116,13 +117,14 @@ class Espresso(ase.calculators.espresso.Espresso):
         if 'input_data' not in kwargs:
             kwargs['input_data'] = {}
         kwargs['input_data']['prefix'] = self.prefix
+        kwargs['input_data']['verbosity'] = 'high'
         ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
                                   label, atoms, **kwargs)
         self.calc = None
         if atoms:
             self.atoms = atoms                                
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
-        self.set_queue(package = package, parallel = '', queue = queue)
+        self.set_queue(package = package, parallel = parallel, queue = queue)
         self.package = package
         self.parallel = parallel
         self.scf_directory = None
@@ -148,7 +150,11 @@ class Espresso(ase.calculators.espresso.Espresso):
             command = command.replace('PARALLEL', parallel)
         if queue:
             # Write the job file
-            xespressorc['queue'].update(queue)
+            script = ''
+            for cf in config_files:
+                if os.path.exists(cf):
+                    file = open(cf, 'r')
+                    script = file.read()
             jobname = self.prefix
             # jobname = '%s-%s-%s' %(self.prefix, package, 
                 # self.parameters['input_data']['calculation'])
@@ -158,26 +164,32 @@ class Espresso(ase.calculators.espresso.Espresso):
                 fh.writelines("#SBATCH --output=%s.out\n" % self.prefix)
                 fh.writelines("#SBATCH --error=%s.err\n" % self.prefix)
                 fh.writelines("#SBATCH --wait\n")
-                for key, value in xespressorc['queue'].items():
+                for key, value in queue.items():
                     if value:
                         fh.writelines("#SBATCH --%s=%s\n" %(key, value))
-                fh.writelines("%s \n"% xespressorc['script'])
+                fh.writelines("%s \n"%script)
                 fh.writelines("%s \n" % command)
             self.command = "sbatch {0}".format('.job_file')
         else:
             self.command = command
         # print('Command: {0}'.format(self.command))
     def read_results(self):
+        from xespresso.xio import get_atomic_species
         pwo = self.prefix + '.pwo'
         pwos = [file for file in os.listdir(self.directory) if pwo in file]
         output = None
         for pwo in pwos:
+            atomic_species = None
             pwo = os.path.join(self.directory, pwo)
             # print('read results from: %s'%pwo)
+            # output = next(read_espresso_out(pwo))
+            atomic_species = get_atomic_species(pwo)
             try:
                 output = io.read(pwo)
-            except:
-                pass
+                atomic_species = get_atomic_species(pwo)
+                if atomic_species: output.arrays['species'] = atomic_species
+            except Exception as e:
+                print(pwo, e)
                 # print('\nread %s failed\n'%pwo)
         if output:
             self.calc = output.calc
@@ -281,8 +293,8 @@ class Espresso(ase.calculators.espresso.Espresso):
         if not restart:
             try:
                 self.calculate()
-            except:
-                print('Not converge.')
+            except Exception as e:
+                print('Not converge: %s'%e)
         converged, fromfile, meg0 = self.read_convergence()
         print(converged, fromfile, meg0)
         i = 0
@@ -300,8 +312,8 @@ class Espresso(ase.calculators.espresso.Espresso):
                 self.parameters['input_data']['restart_mode'] = 'from_scratch'
             try:
                 atoms.get_potential_energy()
-            except:
-                print('Not converge.')
+            except Exception as e:
+                print('Not converge: %s'%e)
             converged, fromfile, meg = self.read_convergence()
             print(converged, fromfile, meg)
             if meg == meg0:
@@ -389,7 +401,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                     t += float(line.split('CPU')[1].split('s WALL')[0])
         self.results['time'] = t
         return t
-    def post(self, queue = False, package = 'dos', **kwargs):
+    def post(self, queue = False, package = 'dos', parallel = '', **kwargs):
         '''
         '''
         import subprocess
@@ -445,7 +457,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                     if key in parameters:
                         f.write('  %s = %s, \n' %(key, value))
                 f.write('/ \n')
-        self.set_queue(package = package, parallel = '', queue = queue)
+        self.set_queue(package = package, parallel = parallel, queue = queue)
         command = self.command
         print('running %s'%package)
         print(command)

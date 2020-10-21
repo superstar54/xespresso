@@ -17,35 +17,24 @@ def get_nbnd(atoms = None, scale = 1.2, pseudopotentials = {}, nspin = 1, input_
     print(' total valence: %s\n nbnd: %s\n scaled nbnd: %s'%(total_valence, nbnd, nbnd_scale))
     return nbnd
 def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
-    nspin = 1, lda_plus_u = False, slab = False,
-    edir = False, atoms = None):
-    if slab:
-        mixing_mode = 'local-TF'
-    else:
-        mixing_mode = 'plain'
+    edir = False, input_ntyp = {}, atoms = None):
     #
     inp = {
     #control
     'calculation':         calculation,
     'max_seconds':         78000,
     'verbosity':           'high',
-    'tstress':             True,
     'tprnfor':             True,
-    'etot_conv_thr':       1.0e-5,
-    'forc_conv_thr':       1.0e-3,
     #system
     'ecutwfc':             ecutwfc,
     'ecutrho':             ecutwfc*8,
     'occupations':         'smearing',
     'degauss':             0.01,
-    'nspin':               nspin,
+    'input_ntyp':          input_ntyp,
     #electrons
-    'startingwfc':         'atomic',
-    'diagonalization':     'david',
     'mixing_beta':         mixing_beta,
     'conv_thr':            conv_thr,
     'electron_maxstep':    400,
-    'mixing_mode':         mixing_mode,
     }
     #
     if edir:

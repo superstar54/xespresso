@@ -3,12 +3,9 @@
 #SBATCH --output=mno.out
 #SBATCH --error=mno.err
 #SBATCH --wait
-#SBATCH --time=0:10:00
-#SBATCH --mem-per-cpu=5G
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=4
 #SBATCH --account=dcb
 #SBATCH --partition=all
-None 
+#SBATCH --time=0:10:00
+ 
 mpirun -n 4 pw.x -nk 2 -nt 4 -nd 144 -in mno.pwi > mno.pwo 

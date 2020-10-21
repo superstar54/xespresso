@@ -10,6 +10,7 @@ import warnings
 from ase import io
 from xespresso import Espresso
 from xespresso.xio import write_neb_in
+from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent, CalculationFailed
 
 
 error_template = 'Property "%s" not available. Please try running Quantum\n' \
@@ -82,3 +83,36 @@ class NEBEspresso(Espresso):
         plt.xlabel('Path')
         plt.ylabel('Energy (eV)')
         plt.show()
+
+
+def interpolate(images, n = 10):
+    '''
+    Interpolate linearly the potisions of the middle temp:
+    '''
+    from ase.neb import NEB
+    if len(images) == 2:
+        new_images = [images[0]]
+        for i in range(n):
+            new_images.append(images[0].copy())
+        new_images.append(images[1])
+        neb = NEB(new_images)
+        neb.interpolate()
+        return new_images
+    elif len(images) == 3:
+        new_images1 = [images[0]]
+        for i in range(n):
+            new_images.append(images[0].copy())
+        new_images.append(images[1])
+        neb = NEB(new_images1)
+        neb.interpolate()
+        new_images = neb.images.copy()
+        #
+        new_images2 = [images[1]]
+        for i in range(n):
+            new_images.append(images[1].copy())
+        new_images.append(images[2])
+        neb = NEB(new_images2)
+        neb.interpolate()
+        new_images.extend(neb.images)
+        return new_images
+

@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH --job-name=h3 
+#SBATCH --output=h3.out
+#SBATCH --error=h3.err
+#SBATCH --wait
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=4
+#SBATCH --account=dcb
+#SBATCH --partition=all
+#SBATCH --time=0:59:00
+ 
+mpirun -n 4 neb.x -ni 4 -in h3.nebi > h3.nebo 

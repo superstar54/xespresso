@@ -11,6 +11,8 @@
    smearing         = 'gaussian'
    nspin            = 2
    lda_plus_u       = .true.
+   ntyp             = 7
+   nat              = 40
    starting_magnetization(1) = 1.0
    starting_magnetization(2) = -1.0
    starting_magnetization(3) = -1.0
@@ -22,8 +24,6 @@
    hubbard_u(4)     = 5.7551
    hubbard_u(6)     = 3.0
    starting_charge(1) = 1
-   ntyp             = 7
-   nat              = 40
    ibrav            = 0
 /
 &ELECTRONS

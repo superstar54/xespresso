@@ -383,3 +383,87 @@ def write_neb_in(filename, images, climbing_images, path_data = None, input_data
     nebi.append('END\n')
     with open(filename, 'w') as fd:
         fd.write(''.join(nebi))
+
+
+
+def parse_pwo_start(lines, index=0):
+    """Parse Quantum ESPRESSO calculation info from lines,
+    starting from index. Return a dictionary containing extracted
+    information.
+
+    - `celldm(1)`: lattice parameters (alat)
+    - `cell`: unit cell in Angstrom
+    - `symbols`: element symbols for the structure
+    - `positions`: cartesian coordinates of atoms in Angstrom
+    - `atoms`: an `ase.Atoms` object constructed from the extracted data
+
+    Parameters
+    ----------
+    lines : list[str]
+        Contents of PWSCF output file.
+    index : int
+        Line number to begin parsing. Only first calculation will
+        be read.
+
+    Returns
+    -------
+    info : dict
+        Dictionary of calculation parameters, including `celldm(1)`, `cell`,
+        `symbols`, `positions`, `atoms`.
+
+    Raises
+    ------
+    KeyError
+        If interdependent values cannot be found (especially celldm(1))
+        an error will be raised as other quantities cannot then be
+        calculated (e.g. cell and positions).
+    """
+    # TODO: extend with extra DFT info?
+
+    info = {}
+
+    for idx, line in enumerate(lines[index:], start=index):
+        if 'celldm(1)' in line:
+            # celldm(1) has more digits than alat!!
+            info['celldm(1)'] = float(line.split()[1]) * units['Bohr']
+            info['alat'] = info['celldm(1)']
+        elif 'number of atoms/cell' in line:
+            info['nat'] = int(line.split()[-1])
+        elif 'number of atomic types' in line:
+            info['ntyp'] = int(line.split()[-1])
+        elif 'crystal axes:' in line:
+            info['cell'] = info['celldm(1)'] * np.array([
+                [float(x) for x in lines[idx + 1].split()[3:6]],
+                [float(x) for x in lines[idx + 2].split()[3:6]],
+                [float(x) for x in lines[idx + 3].split()[3:6]]])
+        elif 'positions (alat units)' in line:
+            info['symbols'] = [
+                label_to_symbol(at_line.split()[1])
+                for at_line in lines[idx + 1:idx + 1 + info['nat']]]
+            info['positions'] = [
+                [float(x) * info['celldm(1)'] for x in at_line.split()[6:9]]
+                for at_line in lines[idx + 1:idx + 1 + info['nat']]]
+            # This should be the end of interesting info.
+            # Break here to avoid dealing with large lists of kpoints.
+            # Will need to be extended for DFTCalculator info.
+            break
+
+    # Make atoms for convenience
+    info['atoms'] = Atoms(symbols=info['symbols'],
+                          positions=info['positions'],
+                          cell=info['cell'], pbc=True)
+
+    return info
+def get_atomic_species(pwo):
+    '''
+    '''
+    with open(pwo) as f:
+        lines = f.readlines()
+        for idx, line in enumerate(lines):
+            if 'number of atoms/cell' in line:
+                nat = int(line.split()[-1])
+            elif 'positions (alat units)' in line:
+                atomic_species = [at_line.split()[1]
+                    for at_line in lines[idx + 1:idx + 1 + nat]]
+                break
+    return atomic_species
