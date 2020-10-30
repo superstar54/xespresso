@@ -21,9 +21,16 @@ For the introduction of ASE , please visit https://wiki.fysik.dtu.dk/ase/index.h
 * Python
 * ASE
 
-### Installation
+### Installation using pip
+pip install --upgrade --user xespresso
 
-Clone this repo. Add it to your PYTHONPATH and PATH. On windows, you can edit the system environment variables.
+### Installation from source
+You can get the source using git:
+``` sh
+git clone https://github.com/superstar54/xespresso.git
+```
+
+Add xespresso to your PYTHONPATH. On windows, you can edit the system environment variables.
 
 ``` sh
 export PYTHONPATH="Your-Location":$PYTHONPATH
@@ -39,11 +46,10 @@ export ESPRESSO_PSEUDO="/path/to/pseudo"
 A example of setting parameters for the queue. See example/queue.py
 
 ``` python
-queue = {'nodes': 1, 
-         'ntasks-per-node': 4, 
-		 'account': 'dcb', 
+queue = {'nodes': 4, 
+         'ntasks-per-node': 20, 
 		 'partition': 'all', 
-		 'time': '0:10:00'}
+		 'time': '23:10:00'}
 calc = Espresso(queue = queue)
 ```
 
@@ -56,8 +62,8 @@ Some atoms are special:
 For example, Fe with spin state AFM. See example/spin.py
 
 ``` python
-atoms.arrays['species'] = atoms.get_chemical_symbols()
-atoms.arrays['species'][1] = 'Fe1'
+atoms.info['species'] = atoms.get_chemical_symbols()
+atoms.info['species'][1] = 'Fe1'
 ```
 
 #### Setting parameters with "(i), i=1,ntyp"
@@ -82,7 +88,7 @@ calc = Espresso(pseudopotentials = pseudopotentials,
 				 }
 ```
 
-#### nscf calculation
+#### Non self-consistent calculation
 
 A example of nscf calculation following the above one.
 
@@ -92,7 +98,7 @@ calc.nscf(queue = queue, kpts = (12, 12, 12))
 calc.nscf_calculate()
 ```
 
-#### calculate dos and pdos
+#### Calculate dos and pdos
 
 A example of calculating and plotting the pdos from the nscf calculation.
 
@@ -103,13 +109,13 @@ calc.post(queue = queue, package = 'projwfc', Emin = fe - 30, Emax = fe + 30, De
 ```
 <!-- <img src="examples/figs/al-pdos.png" width="500"/> -->
 
-#### calculate work function
+#### Calculate work function
 ``` python
 calc.post(queue = queue, package = 'pp', plot_num = 11, fileout = 'potential.cube', iflag = 3, output_format=6)
 calc.get_work_function()
 ```
 
-#### restar from previous calculation
+#### Restart from previous calculation
 ``` python
 calc.read_results()
 atoms = calc.results['atoms']       
@@ -130,5 +136,5 @@ calc.calculate()
 calc.read_results()
 calc.plot()
 ```
-<img src="examples/figs/neb.png" width="500"/>
+<img src="examples/images/neb.png" width="500"/>
 

@@ -19,16 +19,12 @@ setup(
     author_email="xingwang1991@gmail.com",
     license="GPL",
     classifiers=[
-        "License :: GPL-3.0 License",
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.8",
     ],
     packages=["xespresso"],
     include_package_data=True,
     install_requires=["ase", "numpy", "scipy", "matplotlib"],
-    entry_points={
-        "console_scripts": [
-            "realpython=reader.__main__:main",
-        ]
-    },
+    python_requires='>=3',
 )
