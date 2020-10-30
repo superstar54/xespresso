@@ -1,7 +1,5 @@
 '''
-Example:
-1) AFM
-2) DFT+U
+Example using 1) AFM 2) DFT+U
 '''
 from ase.build import bulk
 from ase.io import read
@@ -16,11 +14,8 @@ input_ntyp = {
 }
 
 input_data = {
-'verbosity': 'high', 
 'ecutwfc': 30.0,
-'ecutrho': 240.0,
 'occupations': 'smearing',
-'smearing': 'gaussian',
 'degauss': 0.03,
 'nspin': 2,
 'lda_plus_u': True,
@@ -36,7 +31,8 @@ pseudopotentials = {
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 label  = 'scf/feo/feo',
-                input_data = input_data, kpts=(4, 4, 4))
+                input_data = input_data, 
+                kpts=(4, 4, 4))
 atoms.calc = calc
 e = atoms.get_potential_energy()
 print('Energy {0:1.3f}'.format(e))

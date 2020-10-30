@@ -5,51 +5,30 @@ from xespresso.dos import DOS
 from xespresso.tools import get_nbnd
 import matplotlib.pyplot as plt
 
-# build Fe
 atoms = bulk('Fe')
-# input parameters for pw
-input_data = {
-'verbosity': 'high', 
-'ecutwfc': 40.0,
-'ecutrho': 302.0,
-'occupations': 'smearing',
-'smearing': 'gaussian',
-'degauss': 0.03,
-#
-'mixing_beta': 0.3,
-'conv_thr': 1.0e-8,
-}
-pseudopotentials = {
-'Fe': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',
-}
-nbnd = get_nbnd(atoms = atoms, scale = 1.4, pseudopotentials = pseudopotentials, nspin = 2)
-nbnd = int(nbnd*1.2)
+pseudopotentials = {'Fe': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF'}
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/fe/fe',      # 'scf/fe' is the directory, 'fe' is the prefix
-                input_data = input_data, 
-                nbnd = nbnd,
+                label  = 'scf/fe/fe',  # 'scf/fe' is the directory, 'fe' is the prefix
+                ecutwfc = 40,
+                occupations = 'smearing',
+                degauss = 0.03,
                 kpts=(6, 6, 6))
 atoms.calc = calc
 # e = atoms.get_potential_energy()
-# print('Energy: {0:1.3f}'.format(e))
-# read previous scf results
-
+calc.read_results()
+fermi = calc.get_fermi_level()
 #===============================================================
-# start nscf calculation, and dos, projwfc
-# calc.read_results()
-# fermi = calc.get_fermi_level()
-# # nscf calculation
-# calc.nscf(kpts=(10, 10, 10))
-# calc.nscf_calculate()
-# calc.read_results()
-# # post calculation
-# calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-# calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+# nscf calculation
+calc.nscf(kpts=(8, 8, 8))
+calc.nscf_calculate()
+# post calculation
+calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
 # # DOS analysis
-# dos = DOS(calc, dos = True, pdos = True)
-# dos.read_pdos()
-# dos.plot_dos()
-# plt.show()
+dos = DOS(calc)
+dos.read_dos()
+dos.plot_dos()
+plt.show()
 #
 
 '''

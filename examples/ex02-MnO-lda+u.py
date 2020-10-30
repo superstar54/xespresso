@@ -20,27 +20,16 @@ input_ntyp = {
 }
 
 input_data = {
-'calculation': 'scf',
-'verbosity': 'high', 
 'ecutwfc': 70.0,
 'ecutrho': 840.0,
 'occupations': 'smearing',
-'smearing': 'gaussian',
 'degauss': 0.01,
 'nspin': 2,
 'lda_plus_u': True,
 'input_ntyp': input_ntyp,
-#
-'diagonalization': 'david',
-'mixing_beta': 0.6,
-'conv_thr': 1.0e-10,
-'startingwfc':'atomic',
 }
-queue = {'nodes': 1, 
-         'ntasks-per-node': 4, 
-         'account': 'dcb', 
-         'partition': 'all', 
-         'time': '0:10:00'}
+queue = {'nodes': 1, 'ntasks-per-node': 4, 'account': 'dcb', 
+        'partition': 'all', 'time': '0:10:00'}
 pseudopotentials = {
 'Mn1': 'Mn.pbesol-spn-rrkjus_psl.0.3.1.UPF',
 'Mn2': 'Mn.pbesol-spn-rrkjus_psl.0.3.1.UPF',
