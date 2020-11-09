@@ -1,7 +1,7 @@
 import os
 from ase.geometry import get_layers
 from ase.constraints import FixAtoms
-from ase.io.espresso import read_espresso_in, read_fortran_namelist, construct_namelist
+from ase.io.espresso import construct_namelist
 from xespresso import Espresso
 from xespresso.xio import build_atomic_species_str
 from ase.dft.bandgap import bandgap
@@ -50,48 +50,19 @@ def qeinp(calculation, ecutwfc = 30, mixing_beta = 0.5, conv_thr = 1.0e-8,
         inp.update(dipole_correction(atoms, edir))
         
     return inp
-def dipole_correction(atoms, edir):
+def dipole_correction(atoms, edir = 3):
     inp = {
           'dipfield':  True, 
           'tefield':   True,
           'edir':      edir,
           'eamp':      0.001,
-          'eopreg':    0.1,
+          'eopreg':    0.05,
           }
     emaxpos = max(atoms.positions[:, edir - 1] + atoms.cell[edir - 1][edir - 1])/2.0/atoms.cell[edir - 1][edir - 1]
-    inp['emaxpos'] = emaxpos
+    inp['emaxpos'] = round(emaxpos, 2)
     return inp
 
 # tools
-def read_espresso_input(fileobj):
-    """Parse a Quantum ESPRESSO input files, '.in', '.pwi'.
-    """
-    atoms = read_espresso_in(fileobj)
-    if isinstance(fileobj, str):
-        fileobj = open(fileobj, 'rU')
-
-    # parse namelist section and extract remaining lines
-    data, card_lines = read_fortran_namelist(fileobj)
-    input_data = {}
-    for sec, paras in data.items():
-        for key, value in paras.items():
-            input_data[key] = value
-    # get number of type
-    ntyp = data['system']['ntyp']
-    pseudopotentials = {}
-    trimmed_lines = (line for line in card_lines
-                     if line.strip() and not line[0] == '#')
-    for line in trimmed_lines:
-        if line.strip().startswith('ATOMIC_SPECIES'):
-            for i in range(ntyp):
-                species = next(trimmed_lines).split()
-                pseudopotentials[species[0]] = species[2]
-        if line.strip().startswith('K_POINTS'):
-            kpts = next(trimmed_lines)
-    # calc = Espresso(pseudopotentials=pseudopotentials, 
-    #                 input_data = input_data,
-    #                 kpts=kpts)
-    return input_data, pseudopotentials, kpts
 
 
 def build_oer(atoms):

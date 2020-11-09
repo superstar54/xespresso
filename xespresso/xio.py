@@ -1,7 +1,6 @@
-
-
 import os
 from os import path
+import json
 import operator as op
 import warnings
 import numpy as np
@@ -9,7 +8,7 @@ from ase.atoms import Atoms
 from ase.calculators.calculator import kpts2ndarray, kpts2sizeandoffsets
 from ase.constraints import FixAtoms, FixCartesian
 from ase.data import chemical_symbols, atomic_numbers
-from ase.io.espresso import construct_namelist, grep_valence, SSSP_VALENCE
+from ase.io.espresso import read_espresso_in, construct_namelist, grep_valence, SSSP_VALENCE, read_fortran_namelist
 from ase.units import create_units
 
 
@@ -201,7 +200,6 @@ def build_kpts_str(atoms, kspacing, kpts, koffset):
             kpts_str.append('{k[0]:.14f} {k[1]:.14f} {k[2]:.14f} 0\n'.format(k=k))
         kpts_str.append('\n')
     elif isinstance(kgrid, str) and (kgrid == "gamma"):
-        pwi.append()
         kpts_str = ['K_POINTS gamma\n']
         kpts_str.append('\n')
     else:
@@ -338,3 +336,45 @@ def get_atomic_species(pwo):
                     for at_line in lines[idx + 1:idx + 1 + nat]]
                 break
     return atomic_species
+
+def read_espresso_input(fileobj):
+    """Parse a Quantum ESPRESSO input files, '.in', '.pwi'.
+    """
+    atoms = read_espresso_in(fileobj)
+    if isinstance(fileobj, str):
+        fileobj = open(fileobj, 'rU')
+    # parse namelist section and extract remaining lines
+    data, card_lines = read_fortran_namelist(fileobj)
+    input_data = {}
+    for sec, paras in data.items():
+        for key, value in paras.items():
+            input_data[key] = value
+    # get number of type
+    ntyp = data['system']['ntyp']
+    pseudopotentials = {}
+    trimmed_lines = (line for line in card_lines
+                     if line.strip() and not line[0] == '#')
+    for line in trimmed_lines:
+        if line.strip().startswith('ATOMIC_SPECIES'):
+            for i in range(ntyp):
+                species = next(trimmed_lines).split()
+                pseudopotentials[species[0]] = species[2]
+        if line.strip().startswith('K_POINTS'):
+            kpts = next(trimmed_lines)
+    # calc = Espresso(pseudopotentials=pseudopotentials, 
+    #                 input_data = input_data,
+    #                 kpts=kpts)
+    return atoms, input_data, pseudopotentials, kpts
+
+def read_espresso_asei(fileobj):
+    """Parse Quantum ESPRESSO input parameters
+    """
+    with open(fileobj, 'r') as fp:
+        parameters = json.load(fp)
+    parameters['kpts']
+    return parameters
+def write_espresso_asei(fileobj, parameters):
+    """save Quantum ESPRESSO input parameters
+    """
+    with open(fileobj, 'w') as fp:
+        json.dump(parameters, fp)

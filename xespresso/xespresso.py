@@ -9,9 +9,9 @@ Run PACKAGE.x jobs.
 
 
 from ase import io
-from ase.calculators.calculator import FileIOCalculator, CalculationFailed
+from ase.calculators.calculator import FileIOCalculator, CalculationFailed, equal, compare_atoms
 import ase.calculators.espresso
-from xespresso.xio import write_espresso_in
+from xespresso.xio import write_espresso_in, read_espresso_input, read_espresso_asei, write_espresso_asei, get_atomic_species
 import os
 import shutil
 import numpy as np
@@ -27,7 +27,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     command = 'PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo'
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', atoms=None, package = 'pw', parallel = '',
+                 label='xespresso', prefix = None, atoms=None, package = 'pw', parallel = '',
                  queue = None, **kwargs):
         """
         Accepts all the options for pw.x as given in the QE docs, plus some
@@ -61,22 +61,52 @@ class Espresso(ase.calculators.espresso.Espresso):
               >>> calc.nscf(calculation = 'nscf', kpts=(4, 4, 4))
               >>> calc.nscf_calculate()
         """
-        self.directory = os.path.split(label)[0]
-        self.prefix = os.path.split(label)[1]
-        if 'input_data' not in kwargs:
-            kwargs['input_data'] = {}
-        kwargs['input_data']['prefix'] = self.prefix
-        kwargs['input_data']['verbosity'] = 'high'
-        ase.calculators.espresso.Espresso.__init__(self, restart, ignore_bad_restart_file,
-                                  label, atoms, **kwargs)
+        self.set_label(restart, label, prefix)
+        kwargs = self.set_kwargs(kwargs)
+        ase.calculators.espresso.Espresso.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
+                                  label = self.label, atoms = atoms, **kwargs)
         if atoms:
-            self.atoms = atoms                                
-        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
+            self.atoms = atoms
         self.set_queue(package = package, parallel = parallel, queue = queue)
         self.parallel = parallel
+        
+    def set_label(self, restart, label, prefix):
+        '''
+        '''
+        if restart:
+            self.directory = os.path.split(label)[0]
+            self.prefix = os.path.split(label)[1]
+        else:
+            self.directory = label
+            if not prefix:
+                self.prefix = os.path.split(label)[1]
+            else:
+                self.prefix = prefix
+        self.label = os.path.join(self.directory, self.prefix)
+        self.pwi = os.path.join(self.directory, '%s.pwi'%self.prefix)
+        self.pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
+        self.asei = os.path.join(self.directory, '%s.asei'%self.prefix)
+        self.asei_temp = os.path.join(self.directory, '.%s.asei_temp'%self.prefix)
+        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
+    def set_kwargs(self, kwargs):
+        
+        if 'input_data' not in kwargs:
+            kwargs['input_data'] = {}
+        new_kwargs = {
+        'pseudopotentials': kwargs['pseudopotentials'],
+        'kpts': kwargs['kpts'],
+        'input_data': kwargs['input_data'],
+        }
+        for key, value in kwargs.items():
+            if key not in ['pseudopotentials', 'kpts', 'input_data']:
+                new_kwargs['input_data'][key] = value
+        new_kwargs['input_data']['prefix'] = self.prefix
+        new_kwargs['input_data']['verbosity'] = 'high'
+        self.kwargs = new_kwargs
+        return new_kwargs
     def set_queue(self, package = 'pw', parallel = '', queue = None):
         '''
         If queue, change command to "sbatch .job_file".
@@ -116,11 +146,43 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.command = "sbatch {0}".format('.job_file')
         else:
             self.command = command
+    def read(self, label):
+        """Read the files in a calculation if they exist.
+        This function reads self.parameters and atoms.
+        """
+        # Else read a regular calculation. we start with reading stuff
+        # that is independent of the calculation state.
+        self.directory = label
+        try:
+            atoms, input_data, pseudopotentials, kpts = read_espresso_input(self.pwi)
+            # input_data, pseudopotentials, kpts = read_espresso_asei(self.asei)
+            self.atoms = atoms
+            self.read_results()
+        except:
+            pass
+    def set(self, **kwargs):
+        changed_parameters = FileIOCalculator.set(self, **kwargs)
+        
+    def check_state(self, atoms, tol=1e-6):
+        """Check for any system changes since last calculation."""
+        atoms_changes = compare_atoms(self.atoms, atoms, tol=tol,
+                             excluded_properties=set(self.ignored_changes))
+        parameters_changes = self.compare_parameters()
+        if atoms_changes or parameters_changes:
+            return True
+        return False
+    def compare_parameters(self):
+        if not os.path.exists(self.asei):
+            return True
+        write_espresso_asei(self.asei_temp, self.kwargs)
+        new_parameters = read_espresso_asei(self.asei_temp)
+        old_parameters = read_espresso_asei(self.asei)
+        return old_parameters != new_parameters
+
     def read_results(self):
         '''
         get atomic species
         '''
-        from xespresso.xio import get_atomic_species
         pwo = self.prefix + '.pwo'
         pwos = [file for file in os.listdir(self.directory) if pwo in file]
         output = None
@@ -146,6 +208,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
         write_espresso_in(self.label + '.pwi', atoms, **self.parameters)
+        write_espresso_asei(self.label + '.asei', self.kwargs)
 
     def read_xml_file(self):
         '''
@@ -477,3 +540,9 @@ class Espresso(ase.calculators.espresso.Espresso):
             for key in keys:
                 if key in file:
                     os.remove(os.path.join(self.directory, file))
+        files = os.listdir(self.save_directory)
+        keys = ['wfc']
+        for file in files:
+            for key in keys:
+                if key in file:
+                    os.remove(os.path.join(self.save_directory, file))

@@ -20,6 +20,9 @@ For the introduction of ASE , please visit https://wiki.fysik.dtu.dk/ase/index.h
 
 * Python
 * ASE
+* numpy
+* scipy
+* matplotlib
 
 ### Installation using pip
 pip install --upgrade --user xespresso
@@ -48,8 +51,8 @@ A example of setting parameters for the queue. See example/queue.py
 ``` python
 queue = {'nodes': 4, 
          'ntasks-per-node': 20, 
-		 'partition': 'all', 
-		 'time': '23:10:00'}
+         'partition': 'all', 
+         'time': '23:10:00'}
 calc = Espresso(queue = queue)
 ```
 
@@ -85,7 +88,7 @@ To control the number of processors in each group: -ni,
 calc = Espresso(pseudopotentials = pseudopotentials, 
                  package = 'pw',
                  parallel = '-nk 2 -nt 4 -nd 144',  # parallel parameters
-				 }
+                 }
 ```
 
 #### Non self-consistent calculation
@@ -131,7 +134,7 @@ calc = NEBEspresso(
                  images = images,
                  climbing_images = [5],
                  path_data = path_data
-				 )
+                 )
 calc.calculate()
 calc.read_results()
 calc.plot()
