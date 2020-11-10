@@ -4,13 +4,13 @@ from ase.visualize import view
 from xespresso import Espresso
 atoms = read('datas/MnO.cif')
 # view(atoms)
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.info['species'] = atoms.get_chemical_symbols()
 # set species Mn1, Mn2, ...
 for i in range(4):
-    atoms.arrays['species'][2*i] = atoms.arrays['species'][2*i] + '%s'%(i+1)
-    atoms.arrays['species'][2*i+1] = atoms.arrays['species'][2*i+1] + '%s'%(i+1)
+    atoms.info['species'][2*i] = atoms.info['species'][2*i] + '%s'%(i+1)
+    atoms.info['species'][2*i+1] = atoms.info['species'][2*i+1] + '%s'%(i+1)
 # here I add a new species O1, just for testing
-atoms.arrays['species'][15] = 'O1'
+atoms.info['species'][15] = 'O1'
 # here you can set any parameters which support "(i), i=1,ntyp" in qw,
 # for example  'starting_magnetization', 'Hubbard_U', 'charge', ...
 input_ntyp = {

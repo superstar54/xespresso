@@ -56,6 +56,14 @@ queue = {'nodes': 4,
 calc = Espresso(queue = queue)
 ```
 
+#### Automatic check a new calculation required or not
+
+Before the calculation, first check the working directory. If the same geometry and parameters are used, try to check the results are available or not.
+
+``` python
+calc = Espresso(label = 'scf/fe')
+```
+
 #### Add new species
 Some atoms are special:
 + atoms with different starting_magnetization

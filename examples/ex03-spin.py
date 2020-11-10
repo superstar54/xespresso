@@ -2,8 +2,8 @@ from ase.build import bulk
 from xespresso import Espresso
 
 atoms = bulk('Fe', cubic = True)
-atoms.arrays['species'] = atoms.get_chemical_symbols()
-atoms.arrays['species'][1] = 'Fe1'
+atoms.info['species'] = atoms.get_chemical_symbols()
+atoms.info['species'][1] = 'Fe1'
 input_ntyp = {'starting_magnetization': {'Fe': 1.0, 'Fe1': -1.0, }}
 pseudopotentials = {
 'Fe': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',

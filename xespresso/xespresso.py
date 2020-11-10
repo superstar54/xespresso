@@ -190,7 +190,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             try:
                 output = io.read(pwo)
                 atomic_species = get_atomic_species(pwo)
-                if atomic_species: output.arrays['species'] = atomic_species
+                if atomic_species: output.info['species'] = atomic_species
             except Exception as e:
                 print(pwo, e)
         if output:

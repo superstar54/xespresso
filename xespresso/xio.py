@@ -119,7 +119,7 @@ def build_atomic_species_str(atoms, input_parameters, pseudopotentials):
     # associated for each element
     if 'species' not in atoms.arrays:
         # print('no species')
-        atoms.arrays['species'] = atoms.get_chemical_symbols()
+        atoms.info['species'] = atoms.get_chemical_symbols()
     if pseudopotentials is None:
         pseudopotentials = {}
     species_info = {}
@@ -127,7 +127,7 @@ def build_atomic_species_str(atoms, input_parameters, pseudopotentials):
     ntyp = 0
     # Convert atoms into species.
     for i in range(len(atoms)):
-        species = atoms.arrays['species'][i]
+        species = atoms.info['species'][i]
         if species not in species_info:
             ntyp += 1
             species_info[species] = {}
@@ -215,7 +215,7 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
 
     '''
     if 'species' not in atoms.arrays:
-        atoms.arrays['species'] = atoms.get_chemical_symbols()
+        atoms.info['species'] = atoms.get_chemical_symbols()
     # Convert ase constraints to QE constraints
     # Nx3 array of force multipliers matches what QE uses
     # Do this early so it is available when constructing the atoms card
@@ -234,7 +234,7 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
         atomic_positions_str = ['ATOMIC_POSITIONS angstrom\n']
     for i in range(len(atoms)):
         atom = atoms[i]
-        species = atoms.arrays['species'][i]
+        species = atoms.info['species'][i]
         # only inclued mask if something is fixed
         if not all(constraint_mask[atom.index]):
             mask = ' {mask[0]} {mask[1]} {mask[2]}'.format(
