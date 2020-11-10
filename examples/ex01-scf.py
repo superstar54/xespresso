@@ -8,7 +8,6 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 label  = 'scf/fe',  # 'scf/fe' is the directory, 'fe' is the prefix
                 ecutwfc = 40,
                 occupations = 'smearing',
-                # degauss = 0.03,
                 degauss = 0.03,
                 input_data = input_data,
                 kpts=(6, 6, 6))

@@ -44,7 +44,7 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                  package = 'pw',
                  parallel = '-nk 2 -nt 4 -nd 144',  # parallel parameters
                  queue = queue,
-                 label  = 'scf/mno/mno',
+                 label  = 'scf/mno',
                  input_data = input_data, kpts=(6, 6, 6))
 atoms.set_calculator(calc)
 e = atoms.get_potential_energy()

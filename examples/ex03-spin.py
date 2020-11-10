@@ -10,7 +10,7 @@ pseudopotentials = {
 'Fe1': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/fe-afm/fe-afm',
+                label  = 'scf/fe-afm',
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.03,

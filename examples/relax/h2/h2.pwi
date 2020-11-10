@@ -1,0 +1,32 @@
+&CONTROL
+   calculation      = 'relax'
+   verbosity        = 'high'
+   prefix           = 'h2'
+/
+&SYSTEM
+   ecutwfc          = 20
+   ntyp             = 1
+   nat              = 2
+   ibrav            = 0
+/
+&ELECTRONS
+/
+&IONS
+/
+&CELL
+/
+
+ATOMIC_SPECIES
+H 1.008 H.pbe-rrkjus_psl.1.0.0.UPF
+
+K_POINTS automatic
+1 1 1  0 0 0
+
+CELL_PARAMETERS angstrom
+10.00000000000000 0.00000000000000 0.00000000000000
+0.00000000000000 10.00000000000000 0.00000000000000
+0.00000000000000 0.00000000000000 10.73716600000000
+
+ATOMIC_POSITIONS angstrom
+H 5.0000000000 5.0000000000 5.7371660000 
+H 5.0000000000 5.0000000000 5.0000000000 

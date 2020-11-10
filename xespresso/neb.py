@@ -6,19 +6,19 @@ import numpy as np
 from ase import Atoms
 from ase import io
 from xespresso import Espresso
-from xespresso.xio import write_neb_in
-from ase.calculators.calculator import FileIOCalculator
+from xespresso.xio import write_neb_in, write_espresso_asei
+from ase.calculators.calculator import FileIOCalculator, compare_atoms
 
 
     
 class NEBEspresso(Espresso):
     """
     """
-    implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time']
-    command = 'pw.x -in PREFIX.pwi > PREFIX.pwo'
+    implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time', 'neb']
+    command = 'neb.x  PARALLEL  -in  PREFIX.nebi  >  PREFIX.nebo'
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', images=[Atoms('')], climbing_images = False, path_data = None, package = 'neb', parallel = '',
+                 label='xespresso', prefix = None, images=[Atoms('')], package = 'neb', parallel = '',
                  queue = None,
                  **kwargs):
         """
@@ -26,20 +26,26 @@ class NEBEspresso(Espresso):
         """
         atoms = images[0]
         Espresso.__init__(self, restart, ignore_bad_restart_file,
-                 label, atoms, package, parallel,
-                 queue, **kwargs)
+                 label = label, prefix = prefix, atoms = atoms, package = package, parallel = parallel,
+                 queue = queue, **kwargs)
         self.images = images
-        self.climbing_images = climbing_images
-        self.path_data = path_data
     def write_input(self, images, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, self.images, properties, system_changes)
-        write_neb_in(self.label + '.nebi', self.images, self.climbing_images, self.path_data, **self.parameters)
+        write_neb_in(self.label + '.nebi', self.images, **self.parameters)
+        write_espresso_asei(self.label + '.asei', self.images, self.parameters)
+    def get_neb_path_energy(self, images = None):
+        if images is None:
+            images = self.images
+        paths, energies = self.get_property('neb', images)
+        return paths, energies
     def read_results(self):
+        paths, energies, error = self.read_dat()
         try:
             paths, energies, error = self.read_dat()
             self.paths = paths
             self.energies = energies
             self.error = error
+            self.results['neb'] = [self.paths, self.energies]
             interpolation_paths, interpolation_energies = self.read_int()
             self.interpolation_paths = interpolation_paths
             self.interpolation_energies = interpolation_energies

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 atoms = bulk('Fe')
 pseudopotentials = {'Fe': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF'}
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/fe/fe',  # 'scf/fe' is the directory, 'fe' is the prefix
+                label  = 'scf/fe',  # 'scf/fe' is the directory, 'fe' is the prefix
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.03,

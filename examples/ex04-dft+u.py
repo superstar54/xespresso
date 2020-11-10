@@ -30,7 +30,7 @@ pseudopotentials = {
 'O'  : 'O.pbe-n-rrkjus_psl.1.0.0.UPF',
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/feo/feo',
+                label  = 'scf/feo',
                 input_data = input_data, 
                 kpts=(4, 4, 4))
 atoms.calc = calc

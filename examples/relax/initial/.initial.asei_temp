@@ -1,0 +1,1 @@
+{"pseudopotentials": {"H": "H.pbe-rrkjus_psl.1.0.0.UPF"}, "kpts": [1, 1, 1], "input_data": {"calculation": "relax", "verbosity": "high", "ecutwfc": 20.0, "ecutrho": 100.0, "occupations": "smearing", "smearing": "gaussian", "degauss": 0.03, "nspin": 2, "starting_magnetization": 0.5, "mixing_beta": 0.3, "conv_thr": 1e-08, "prefix": "initial"}}

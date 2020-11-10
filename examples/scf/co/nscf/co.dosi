@@ -1,0 +1,6 @@
+&DOS
+   Emin = -28.9056, 
+  Emax = 1.0944000000000003, 
+  DeltaE = 0.1, 
+  prefix = co, 
+/ 

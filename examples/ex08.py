@@ -27,7 +27,7 @@ pseudopotentials = {
 'Fe1': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/fe-afm/fe-afm',
+                label  = 'scf/fe-afm',
                 input_data = input_data, kpts=(6, 6, 6))
 atoms.calc = calc
 # e = atoms.get_potential_energy()

@@ -34,7 +34,7 @@ queue = {'nodes': 1,
          'time': '0:10:00'}
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 queue = queue,
-                label  = 'scf/fe/fe',      # 'scf/fe' is the directory, 'fe' is the prefix
+                label  = 'scf/fe',      # 'scf/fe' is the directory, 'fe' is the prefix
                 input_data = input_data, 
                 kpts=(6, 6, 6))
 atoms.calc = calc

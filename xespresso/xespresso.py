@@ -16,7 +16,7 @@ import os
 import shutil
 import numpy as np
 from datetime import datetime
-
+import copy
 config_files = [os.path.join(os.environ['HOME'], '.xespressorc'),
             '.xespressorc']
 
@@ -95,18 +95,15 @@ class Espresso(ase.calculators.espresso.Espresso):
         
         if 'input_data' not in kwargs:
             kwargs['input_data'] = {}
-        new_kwargs = {
-        'pseudopotentials': kwargs['pseudopotentials'],
-        'kpts': kwargs['kpts'],
-        'input_data': kwargs['input_data'],
-        }
+        ase_parameters = copy.deepcopy(kwargs)
         for key, value in kwargs.items():
-            if key not in ['pseudopotentials', 'kpts', 'input_data']:
-                new_kwargs['input_data'][key] = value
-        new_kwargs['input_data']['prefix'] = self.prefix
-        new_kwargs['input_data']['verbosity'] = 'high'
-        self.kwargs = new_kwargs
-        return new_kwargs
+            if key not in ['pseudopotentials', 'kpts', 'kspacing', 'koffset', 'input_data', 'climbing_images', 'path_data']:
+                ase_parameters['input_data'][key] = value
+                del ase_parameters[key]
+        ase_parameters['input_data']['prefix'] = self.prefix
+        ase_parameters['input_data']['verbosity'] = 'high'
+        self.ase_parameters = ase_parameters
+        return ase_parameters
     def set_queue(self, package = 'pw', parallel = '', queue = None):
         '''
         If queue, change command to "sbatch .job_file".
@@ -154,30 +151,30 @@ class Espresso(ase.calculators.espresso.Espresso):
         # that is independent of the calculation state.
         self.directory = label
         try:
-            atoms, input_data, pseudopotentials, kpts = read_espresso_input(self.pwi)
-            # input_data, pseudopotentials, kpts = read_espresso_asei(self.asei)
-            self.atoms = atoms
+            atoms, parameters = read_espresso_asei(self.asei)
+            self.restart_atoms = atoms
+            self.restart_parameters = parameters
             self.read_results()
         except:
             pass
     def set(self, **kwargs):
         changed_parameters = FileIOCalculator.set(self, **kwargs)
         
-    def check_state(self, atoms, tol=1e-6):
+    def check_state(self, atoms, tol=1e-4):
         """Check for any system changes since last calculation."""
-        atoms_changes = compare_atoms(self.atoms, atoms, tol=tol,
-                             excluded_properties=set(self.ignored_changes))
-        parameters_changes = self.compare_parameters()
-        if atoms_changes or parameters_changes:
-            return True
-        return False
-    def compare_parameters(self):
         if not os.path.exists(self.asei):
             return True
-        write_espresso_asei(self.asei_temp, self.kwargs)
-        new_parameters = read_espresso_asei(self.asei_temp)
-        old_parameters = read_espresso_asei(self.asei)
-        return old_parameters != new_parameters
+        if isinstance(self.restart_atoms, list):
+            if len(self.restart_atoms) != len(atoms):
+                return True
+            for i in range(len(atoms)):
+                if compare_atoms(self.restart_atoms[i], atoms[i], tol=tol,
+                             excluded_properties=set(self.ignored_changes)):
+                    return True
+        if self.restart_parameters != self.ase_parameters:
+            return True
+        print('Same geometry and parameters, try to check the results are available or not.')
+        return False
 
     def read_results(self):
         '''
@@ -202,13 +199,12 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.results['atoms'] = output
             self.efermi = self.get_fermi_level()
             self.nspins = self.get_number_of_spins()
-            self.atoms = output
         else:
             print('\nRead result failed\n')
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
         write_espresso_in(self.label + '.pwi', atoms, **self.parameters)
-        write_espresso_asei(self.label + '.asei', self.kwargs)
+        write_espresso_asei(self.label + '.asei', atoms, self.parameters)
 
     def read_xml_file(self):
         '''

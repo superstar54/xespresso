@@ -11,7 +11,7 @@ view(atoms)
 print(atoms)
 pseudopotentials = {'Al': 'Al.pbe-n-rrkjus_psl.1.0.0.UPF',}
 calc = Espresso(pseudopotentials = pseudopotentials, 
-                label  = 'scf/al/al',
+                label  = 'scf/al',
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.01,

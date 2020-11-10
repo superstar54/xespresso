@@ -36,7 +36,7 @@ pseudopotentials = {
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 #  queue = queue,
-                 label  = 'relax/initial/initial',
+                 label  = 'relax/initial',
                  input_data = input_data, kpts=(1, 1, 1))
 atoms.calc = calc
 atoms.get_potential_energy()
@@ -52,7 +52,7 @@ final = initial.copy()
 final.positions[1] = [3.0 - final[1].x, 0, 0]
 images = [initial, final]
 # view images before neb calculation
-view(interpolate(images, 10))
+# view(interpolate(images, 10))
 
 # view(images)
 #
@@ -64,7 +64,7 @@ path_data = {
 'ds': 2.E0,
 'opt_scheme': "broyden",
 'num_of_images' : 7,
-'k_max' : 0.3E0,
+'k_max' : 0.4E0,
 'k_min' : 0.2E0,
 'CI_scheme' : "auto",
 'path_thr': 0.1E0,
@@ -72,16 +72,18 @@ path_data = {
 # print(queue)
 calc = NEBEspresso(pseudopotentials = pseudopotentials, 
                  package = 'neb',
-                 queue = queue,
-                 parallel = '-ni 4',
+                #  queue = queue,
+                 parallel = '-ni 1',
                  images = images,
                  climbing_images = [5],
-                 label  = 'neb/h3/h3',
+                 label  = 'neb/h3',
                  input_data = input_data, 
                  path_data = path_data,
-                 kpts=(1, 1, 1))
+                 kpts=(1, 1, 1),
+                 )
 #
-calc.calculate()
+paths, energies = calc.get_neb_path_energy()
+print(energies)
 calc.read_results()
 calc.plot()
 

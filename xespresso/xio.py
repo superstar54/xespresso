@@ -1,6 +1,7 @@
 import os
 from os import path
 import json
+import pickle
 import operator as op
 import warnings
 import numpy as np
@@ -250,9 +251,10 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
             '{mask}\n'.format(species=species, coords=coords, mask=mask))
     return atomic_positions_str
 
-def write_neb_in(filename, images, climbing_images, path_data = None, input_data=None, pseudopotentials=None,
-                      kspacing=None, kpts=None, koffset=(0, 0, 0),
-                      crystal_coordinates=False, **kwargs):
+def write_neb_in(filename, images, climbing_images = [], path_data = {}, 
+                 input_data={}, pseudopotentials=None,
+                 kspacing=None, kpts=None, koffset=(0, 0, 0),
+                 crystal_coordinates=False, **kwargs):
     """
     Create an input file for neb.x.
 
@@ -337,7 +339,7 @@ def get_atomic_species(pwo):
                 break
     return atomic_species
 
-def read_espresso_input(fileobj):
+def read_espresso_input(fileobj, neb = False):
     """Parse a Quantum ESPRESSO input files, '.in', '.pwi'.
     """
     atoms = read_espresso_in(fileobj)
@@ -369,12 +371,11 @@ def read_espresso_input(fileobj):
 def read_espresso_asei(fileobj):
     """Parse Quantum ESPRESSO input parameters
     """
-    with open(fileobj, 'r') as fp:
-        parameters = json.load(fp)
-    parameters['kpts']
-    return parameters
-def write_espresso_asei(fileobj, parameters):
+    with open(fileobj, 'rb') as fp:
+        atoms, parameters = pickle.load(fp)
+    return atoms, parameters
+def write_espresso_asei(fileobj, atoms, parameters):
     """save Quantum ESPRESSO input parameters
     """
-    with open(fileobj, 'w') as fp:
-        json.dump(parameters, fp)
+    with open(fileobj, 'wb') as fp:
+        pickle.dump([atoms, parameters], fp)
