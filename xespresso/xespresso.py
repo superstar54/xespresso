@@ -63,7 +63,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         """
         self.set_label(restart, label, prefix)
         kwargs = self.set_kwargs(kwargs)
-        ase.calculators.espresso.Espresso.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
+        FileIOCalculator.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
                                   label = self.label, atoms = atoms, **kwargs)
         if atoms:
             self.atoms = atoms

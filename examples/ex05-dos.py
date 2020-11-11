@@ -14,21 +14,20 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 degauss = 0.03,
                 kpts=(6, 6, 6))
 atoms.calc = calc
-# e = atoms.get_potential_energy()
-calc.read_results()
+e = atoms.get_potential_energy()
 fermi = calc.get_fermi_level()
 #===============================================================
-# nscf calculation
-calc.nscf(kpts=(8, 8, 8))
-calc.nscf_calculate()
-# post calculation
-calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-# # DOS analysis
-dos = DOS(calc)
-dos.read_dos()
-dos.plot_dos()
-plt.show()
+# # nscf calculation
+# calc.nscf(kpts=(8, 8, 8))
+# calc.nscf_calculate()
+# # post calculation
+# calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+# calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+# # # DOS analysis
+# dos = DOS(calc)
+# dos.read_dos()
+# dos.plot_dos()
+# plt.show()
 #
 
 '''
