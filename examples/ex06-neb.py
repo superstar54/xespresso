@@ -6,7 +6,7 @@ from ase.constraints import FixAtoms, FixCartesian
 from ase.visualize import view
 from xespresso import Espresso
 from xespresso.neb import NEBEspresso, interpolate
-
+import matplotlib.pyplot as plt
 #=============================================================
 # first optmize the inital and final structure
 atoms = Atoms('H3', positions = [[0, 0, 0], [0.8, 0, 0.0], [3.0, 0, 0]], 
@@ -85,5 +85,6 @@ calc = NEBEspresso(pseudopotentials = pseudopotentials,
 paths, energies = calc.get_neb_path_energy()
 print(energies)
 calc.read_results()
-calc.plot()
+calc.plot_fit()
+plt.savefig('images/neb.png')
 

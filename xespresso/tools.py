@@ -99,7 +99,7 @@ def fix_layers(atoms, miller = (0, 0, 1), tol = 1.0, n = [0, 4]):
     atoms.set_constraint(constraint)
     return atoms
 
-def mypool(jobs, func):
+def mypool(jobs, func, showInfo = False):
     '''
     '''
     from random import random
@@ -109,7 +109,8 @@ def mypool(jobs, func):
     images = []
     t = 0
     for job, atoms in jobs.items():
-        print(job, len(atoms), atoms)
+        if showInfo:
+            print(job, len(atoms), atoms)
         sleep(random()*2)
         results.append(pool.apply_async(func, (job, atoms, t)))
         t += random()*5

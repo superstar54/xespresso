@@ -171,9 +171,13 @@ class Espresso(ase.calculators.espresso.Espresso):
                 if compare_atoms(self.restart_atoms[i], atoms[i], tol=tol,
                              excluded_properties=set(self.ignored_changes)):
                     return True
+        else:
+            if compare_atoms(self.restart_atoms, atoms, tol=tol,
+                             excluded_properties=set(self.ignored_changes)):
+                return True
         if self.restart_parameters != self.ase_parameters:
             return True
-        print('Same geometry and parameters, try to check the results are available or not.')
+        #print('Same geometry and parameters, try to check the results are available or not.')
         return False
 
     def read_results(self):
