@@ -15,36 +15,32 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.01,
-                kpts=(8, 8, 1))
+                kpts=(4, 4, 1))
 atoms.calc = calc
-# e = atoms.get_potential_energy()
+e = atoms.get_potential_energy()
 calc.read_results()
 e = calc.results['energy']
 fermi = calc.get_fermi_level()
 print('Energy: {0:1.3f}'.format(e))
 #===============================================================
-# start nscf calculation, and dos, projwfc
-calc.nscf(kpts=(8, 8, 1))
-# calc.nscf_calculate()
-calc.read_results()
-# # post calculation
-# calc.post(package='pp', plot_num = 5, sample_bias = 0.0735, iflag = 3, output_format = 5, fileout = 'stm1_1eV.xsf')
-#========================
+# post calculation
+calc.post(package='pp', plot_num = 5, sample_bias = 0.0735, iflag = 3, output_format = 6, fileout = 'stm1_1eV.cube')
+# ========================
 # Creates: 2d.png, 2d_I.png, line.png, dIdV.png
-# from ase.dft.stm import STM
-# from ase.io.cube import read_cube_data
-# import pickle
-# ldos, atoms = read_cube_data('scf/al/nscf/ldos.cube')
-# with open('scf/al/nscf/datas.pickle', 'wb') as f:
-#     pickle.dump([ldos, 1.0, atoms.cell], f)
-# stm = STM('scf/al/nscf/datas.pickle')
-# z = 8.0
-# bias = 1.0
-# c = stm.get_averaged_current(bias, z)
-# x, y, h = stm.scan(bias, c, repeat=(3, 5))
-# # print(x, y, h)
-# import matplotlib.pyplot as plt
-# plt.gca(aspect='equal')
-# plt.contourf(x, y, h, 40)
-# plt.colorbar()
-# plt.savefig('2d.png')
+from ase.dft.stm import STM
+from ase.io.cube import read_cube_data
+import pickle
+ldos, atoms = read_cube_data('scf/al/stm1_1eV.cube')
+with open('scf/al/datas.pickle', 'wb') as f:
+    pickle.dump([ldos, 1.0, atoms.cell], f)
+stm = STM('scf/al/datas.pickle')
+z = 8.0
+bias = 1.0
+c = stm.get_averaged_current(bias, z)
+x, y, h = stm.scan(bias, c, repeat=(3, 5))
+# print(x, y, h)
+import matplotlib.pyplot as plt
+plt.gca(aspect='equal')
+plt.contourf(x, y, h, 40)
+plt.colorbar()
+plt.savefig('2d.png')

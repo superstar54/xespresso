@@ -72,6 +72,10 @@ def build_section_str(atoms, species_info, input_data, input_parameters):
                 if species in species_info:
                     mag_str = '{0}({1})'.format(key, species_info[species]['index'])
                     input_parameters['system'][mag_str] = value[species]
+    if 'hubbard_v' in input_data:
+        for key, value in input_data['hubbard_v'].items():
+                    mag_str = 'Hubbard_V{0}'.format(key)
+                    input_parameters['system'][mag_str] = value
     # Use cell as given or fit to a specific ibrav
     if 'ibrav' in input_parameters['system']:
         ibrav = input_parameters['system']['ibrav']
@@ -117,7 +121,7 @@ def build_atomic_species_str(atoms, input_parameters, pseudopotentials):
 
     # Species info holds the information on the pseudopotential and
     # associated for each element
-    if 'species' not in atoms.arrays:
+    if 'species' not in atoms.info:
         # print('no species')
         atoms.info['species'] = atoms.get_chemical_symbols()
     if pseudopotentials is None:
@@ -214,7 +218,7 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
     '''
 
     '''
-    if 'species' not in atoms.arrays:
+    if 'species' not in atoms.info:
         atoms.info['species'] = atoms.get_chemical_symbols()
     # Convert ase constraints to QE constraints
     # Nx3 array of force multipliers matches what QE uses
