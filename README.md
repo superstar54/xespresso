@@ -88,6 +88,15 @@ input_ntyp = {
 input_data['input_ntyp'] = input_ntyp,
 ```
 
+#### Setting parameters for "Hubbard_V(na,nb,k)"
+Hubbard, starting_magnetization, starting_charge and so on. See example/dft+u.py
+
+``` python
+input_data = {
+'hubbard_v': {'(1,1,1)': 4.0, '(3,3,1)': 1.0},
+}
+```
+
 #### Control parallelization levels
 To control the number of processors in each group: -ni,
 -nk, -nb, -nt, -nd) are used.
