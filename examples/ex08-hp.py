@@ -4,8 +4,8 @@ from xespresso import Espresso
 
 atoms = bulk('Fe', cubic = True)
 # set new species for afm state
-atoms.arrays['species'] = atoms.get_chemical_symbols()
-atoms.arrays['species'][1] = 'Fe1'
+atoms.info['species'] = atoms.get_chemical_symbols()
+atoms.info['species'][1] = 'Fe1'
 input_ntyp = {'starting_magnetization': {'Fe': 1.0, 'Fe1': -1.0, }}
 
 input_data = {
@@ -30,12 +30,11 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 label  = 'scf/fe-afm',
                 input_data = input_data, kpts=(6, 6, 6))
 atoms.calc = calc
-# e = atoms.get_potential_energy()
+e = atoms.get_potential_energy()
 calc.read_results()
 e = calc.results['energy']
 print('Energy  {0:1.3f}'.format(e))
 
-parameters_hp.update({'nq1': np})
 
 parameters_hp = {
 'nq1': 1,
@@ -43,6 +42,7 @@ parameters_hp = {
 'nq3': 1,
 'equiv_type': 0,
 'conv_thr_chi': 1e-5,
+'perturb_only_atom': {'1':True}   #  key(i)
 }
 calc.post(package='hp', **parameters_hp)
 

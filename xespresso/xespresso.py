@@ -1,6 +1,6 @@
 """Quantum ESPRESSO Calculator
 
-export PYTHONPATH="Your-Location":$PYTHONPATH
+export PYTHONPATH="Your-Location"/xespresso:$PYTHONPATH
 export ASE_ESPRESSO_COMMAND="/path/to/PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo"
 export ESPRESSO_PSEUDO="/path/to/pseudo"
 
@@ -92,7 +92,8 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.scf_parameters = None
         self.scf_results = None
     def set_kwargs(self, kwargs):
-        
+        '''
+        '''
         if 'input_data' not in kwargs:
             kwargs['input_data'] = {}
         ase_parameters = copy.deepcopy(kwargs)
@@ -459,7 +460,11 @@ class Espresso(ase.calculators.espresso.Espresso):
                 f.write('&%s\n '%section)
                 for key, value in kwargs.items():
                     if key in parameters:
-                        f.write('  %s = %s, \n' %(key, value))
+                        if isinstance(value, dict):
+                            for subkey, subvalue in value.items():
+                                f.write('  %s(%s) = %s, \n' %(key, subkey, subvalue))
+                        else:
+                            f.write('  %s = %s, \n' %(key, value))
                 f.write('/ \n')
         self.set_queue(package = package, parallel = parallel, queue = queue)
         command = self.command

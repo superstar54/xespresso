@@ -107,13 +107,11 @@ def mypool(jobs, func, showInfo = False):
     pool = multiprocessing.Pool(len(jobs))
     results = []
     images = []
-    t = 0
     for job, atoms in jobs.items():
         if showInfo:
             print(job, len(atoms), atoms)
         sleep(random()*2)
-        results.append(pool.apply_async(func, (job, atoms, t)))
-        t += random()*5
+        results.append(pool.apply_async(func, (job, atoms)))
     for r in results:
         r.get()
     pool.close()

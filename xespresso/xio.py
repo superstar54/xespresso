@@ -218,8 +218,12 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
     '''
 
     '''
+    import sys
     if 'species' not in atoms.info:
         atoms.info['species'] = atoms.get_chemical_symbols()
+    else:
+        if len(atoms.info['species']) != len(atoms):
+            sys.exit('Species is wrong, please check!')
     # Convert ase constraints to QE constraints
     # Nx3 array of force multipliers matches what QE uses
     # Do this early so it is available when constructing the atoms card
