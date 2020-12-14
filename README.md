@@ -158,3 +158,8 @@ calc.plot()
 ```
 <img src="examples/images/neb.png" width="500"/>
 
+
+
+### To do lists:
+* add `qPointsSpecs` and `Line-of-input` for phonon input file
+

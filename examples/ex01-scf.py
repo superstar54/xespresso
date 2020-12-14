@@ -8,11 +8,16 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 label  = 'scf/fe',  # 'scf/fe' is the directory, 'fe' is the prefix
                 ecutwfc = 40,
                 occupations = 'smearing',
-                degauss = 0.03,
+                degauss = 0.02,
                 input_data = input_data,
-                kpts=(6, 6, 6))
+                kpts=(6, 6, 6),
+                debug = True,)
 atoms.calc = calc
-e = atoms.get_potential_energy()
+# method 1: use get_potential_energy()
+# e = atoms.get_potential_energy()
+# method 2: use run()
+calc.run(atoms = atoms)
+e = calc.results['energy']
 print('Energy: {0:1.3f}'.format(e))
 
 '''

@@ -17,6 +17,16 @@ import shutil
 import numpy as np
 from datetime import datetime
 import copy
+import logging
+import sys
+
+logging.basicConfig(stream=sys.stdout,
+                    format=('%(levelname)-8s '
+                            '[%(funcName)s]: %(message)s'),
+                    level=logging.INFO)
+
+logger = logging.getLogger('xespresso')
+
 config_files = [os.path.join(os.environ['HOME'], '.xespressorc'),
             '.xespressorc']
 
@@ -28,7 +38,7 @@ class Espresso(ase.calculators.espresso.Espresso):
 
     def __init__(self, restart=None, ignore_bad_restart_file=False,
                  label='xespresso', prefix = None, atoms=None, package = 'pw', parallel = '',
-                 queue = None, **kwargs):
+                 queue = None, debug = False, **kwargs):
         """
         Accepts all the options for pw.x as given in the QE docs, plus some
         additional options:
@@ -41,7 +51,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                       'account': 'xxx', 'partition': 'normal', 
                       'time': '23:59:00'}
         package: str
-            Choose the quantum espresso pacakge: pw, dos, projwfc, band, pp, ph, ..
+            Choose the quantum espresso package: pw, dos, projwfc, band, pp, ph, ..
             For NEB calculation, please use neb.NEBEspresso module.
             Calculaiton use phonon is not implemented yet.
         parallel: str
@@ -55,23 +65,32 @@ class Espresso(ase.calculators.espresso.Espresso):
               >>> atoms.set_calculator(calc)
               >>> atoms.get_potential_energy()
             2. post calculation can be made as follows:
-              >>> calc.post('pacakge' = 'dos', **kwargs)
-              >>> calc.post('pacakge' = 'pp', **kwargs)
+              >>> calc.post('package' = 'dos', **kwargs)
+              >>> calc.post('package' = 'pp', **kwargs)
             3. non-self-consistent calculation can be made as follows:
               >>> calc.nscf(calculation = 'nscf', kpts=(4, 4, 4))
               >>> calc.nscf_calculate()
         """
+        self.logger = logger
+        if debug:
+            print('debug is: ', debug)
+            self.logger.setLevel(debug)
         self.set_label(restart, label, prefix)
         kwargs = self.set_kwargs(kwargs)
         FileIOCalculator.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
                                   label = self.label, atoms = atoms, **kwargs)
         if atoms:
             self.atoms = atoms
-        self.set_queue(package = package, parallel = parallel, queue = queue)
+        self.queue = queue
         self.parallel = parallel
+        self.package = package
+        self.set_queue()
+        self.parallel = parallel
+        self.debug = debug
         
     def set_label(self, restart, label, prefix):
         '''
+        set directory and prefix from label
         '''
         if restart:
             self.directory = os.path.split(label)[0]
@@ -82,6 +101,8 @@ class Espresso(ase.calculators.espresso.Espresso):
                 self.prefix = os.path.split(label)[1]
             else:
                 self.prefix = prefix
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
         self.label = os.path.join(self.directory, self.prefix)
         self.pwi = os.path.join(self.directory, '%s.pwi'%self.prefix)
         self.pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
@@ -91,8 +112,14 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
+        # self.logger.fd = os.path.join(self.directory, '%s.txt'%self.prefix)
+        self.logger.debug('Label: %s'%(self.label))
+        self.logger.debug('Directory: %s'%(self.directory))
+        self.logger.debug('Prefix: %s'%(self.prefix))
     def set_kwargs(self, kwargs):
         '''
+        set parameters for pw.x
+        all other parameters are stored in 'input_data'
         '''
         if 'input_data' not in kwargs:
             kwargs['input_data'] = {}
@@ -105,13 +132,18 @@ class Espresso(ase.calculators.espresso.Espresso):
         ase_parameters['input_data']['verbosity'] = 'high'
         self.ase_parameters = ase_parameters
         return ase_parameters
-    def set_queue(self, package = 'pw', parallel = '', queue = None):
+    def set_queue(self, package = None, parallel = None, queue = None):
         '''
         If queue, change command to "sbatch .job_file".
         The queue information are written into '.job_file'
         '''
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
+        if queue is None:
+            queue = self.queue
+        if package is None:
+            package = self.package
+        if parallel is None:
+            parallel = self.parallel
+        
         command = os.environ.get('ASE_ESPRESSO_COMMAND')
         if 'PACKAGE' in command:
             if 'pw' in package:
@@ -144,6 +176,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.command = "sbatch {0}".format('.job_file')
         else:
             self.command = command
+        self.logger.debug('Command: %s'%(self.command))
     def read(self, label):
         """Read the files in a calculation if they exist.
         This function reads self.parameters and atoms.
@@ -151,13 +184,17 @@ class Espresso(ase.calculators.espresso.Espresso):
         # Else read a regular calculation. we start with reading stuff
         # that is independent of the calculation state.
         self.directory = label
+        self.restart_atoms = None
+        self.restart_parameters = {}
         try:
             atoms, parameters = read_espresso_asei(self.asei)
             self.restart_atoms = atoms
             self.restart_parameters = parameters
             self.read_results()
+            self.logger.debug('Restart from %s'%(self.directory))
         except:
             pass
+        
     def set(self, **kwargs):
         changed_parameters = FileIOCalculator.set(self, **kwargs)
         
@@ -171,12 +208,15 @@ class Espresso(ase.calculators.espresso.Espresso):
             for i in range(len(atoms)):
                 if compare_atoms(self.restart_atoms[i], atoms[i], tol=tol,
                              excluded_properties=set(self.ignored_changes)):
+                    self.logger.debug('Atoms changes, run a new calculation')
                     return True
         else:
             if compare_atoms(self.restart_atoms, atoms, tol=tol,
                              excluded_properties=set(self.ignored_changes)):
+                self.logger.debug('Atoms changes, run a new calculation')
                 return True
         if self.restart_parameters != self.ase_parameters:
+            self.logger.debug('Parameter changes, run a new calculation')
             return True
         #print('Same geometry and parameters, try to check the results are available or not.')
         return False
@@ -199,6 +239,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             except Exception as e:
                 print(pwo, e)
         if output:
+            self.logger.debug('Read result successfully!')
             self.calc = output.calc
             self.results = output.calc.results
             self.results['atoms'] = output
@@ -206,10 +247,13 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.nspins = self.get_number_of_spins()
         else:
             print('\nRead result failed\n')
+            self.logger.debug('Read result failed!')
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
         write_espresso_in(self.label + '.pwi', atoms, **self.parameters)
         write_espresso_asei(self.label + '.asei', atoms, self.parameters)
+        self.logger.debug('Write input successfully')
+        
 
     def read_xml_file(self):
         '''
@@ -241,35 +285,39 @@ class Espresso(ase.calculators.espresso.Espresso):
         Read the status of the calculation.
         {
         '0': 'Done',
-        '-1': 'Cancelled',
-        '1': 'Need restart'
-        '2': 'Pending or not submit',
-        '3': 'Not start',
-        '4': 'Not finish',
+        '-1': ' manual cancelled',
+        '1': 'Maximum CPU time exceeded', convergence NOT achieved after
+        '2': 'manual restart', 'Pending or not submit',
+        '3': 'other errors',
+        '4': 'unknow error',
         }
         '''
         fromfile = self.read_xml_file()
-        errfile = self.label + '.err'
-        if not os.path.exists(errfile):
-            # print('%s not exists'%errfile)
-            return 1, fromfile, 'Pending or not submit'
-        errs = ['RESTART', 'pw.x', 'out-of-memory', 
-                'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION', 
-                'segmentation fault', 'PARSE_ERR', 'mpirun']
-        cancelled = False
-        with open(errfile, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                if 'CANCELLED' in line:
-                    cancelled = True
-                for err in errs:
-                    if err in line:
-                        return 1, fromfile, line
-            # cancelled by owner
-            if len(lines) > 0:
-                if cancelled:
-                    return -1, fromfile, lines[0]
-        # 
+        # read the error file from queue
+        if self.queue:
+            errfile = self.label + '.err'
+            if not os.path.exists(errfile):
+                self.logger.debug('%s not exists'%errfile)
+                return 2, fromfile, 'Pending or not submit'
+            errs = ['RESTART', 'pw.x', 'out-of-memory', 
+                    'NODE FAILURE', 'TIME LIMIT', 'COMMUNICATION', 
+                    'segmentation fault', 'PARSE_ERR', 'mpirun']
+            cancelled = False
+            with open(errfile, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                    if 'CANCELLED' in line:
+                        cancelled = True
+                    for err in errs:
+                        if err in line:
+                            self.logger.debug('Need restart')
+                            return 3, fromfile, line
+                # cancelled by owner
+                if len(lines) > 0:
+                    if cancelled:
+                        self.logger.debug('Cancelled')
+                        return -1, fromfile, lines[0]
+        # no error from queue, or job not run in the queue
         output = self.label + '.pwo'
         if not os.path.exists(output):
             # print('%s not exists'%output)
@@ -282,24 +330,31 @@ class Espresso(ase.calculators.espresso.Espresso):
             n = min([100, nlines])
             for line in lines[-n:-1]:
                 if line.rfind('too many bands are not converged') > -1:
+                    self.logger.debug('Need restart')
                     return 1, fromfile, '%s, %s'%(stime, line)
                 if line.rfind('convergence NOT achieved after') > -1:
                     fromfile = True
+                    self.logger.debug('Need restart')
                     return 1, fromfile, '%s, %s'%(stime, line)
                 if line.rfind('Maximum CPU time exceeded') > -1:
                     fromfile = True
+                    self.logger.debug('Need restart')
                     return 1, fromfile, '%s, %s'%(stime, line)
                 if line.rfind('JOB DONE.') > -1:
                     fromfile = True
+                    self.logger.debug('JOB DONE')
                     return 0, fromfile, line
         return 4, fromfile, line
     def run(self, atoms = None, restart = False):
         '''
         run and restart
         '''
+        if atoms is not None:
+            self.atoms = atoms
         if not restart:
             try:
-                self.calculate()
+                self.atoms.get_potential_energy()
+                # self.calculate()
             except Exception as e:
                 print('Not converge: %s'%e)
         converged, fromfile, meg0 = self.read_convergence()
@@ -323,7 +378,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                 print('Not converge: %s'%e)
             converged, fromfile, meg = self.read_convergence()
             print(converged, fromfile, meg)
-            if meg == meg0:
+            if meg == meg0 and converged > 1:
                 print('Same message! \n %s'%meg)
                 break
             meg0 = meg
@@ -338,7 +393,6 @@ class Espresso(ase.calculators.espresso.Espresso):
         new_src = os.path.join(directory, '%s-%s'%(tnow, src))
         src = os.path.join(directory, src)
         if not os.path.exists(src): return 0
-        flist = []
         ftype = src.split('.')[-1]
         flag = True
         for dst in os.listdir(directory):
@@ -408,11 +462,13 @@ class Espresso(ase.calculators.espresso.Espresso):
         return t
     def post(self, queue = False, package = 'dos', parallel = '', **kwargs):
         '''
+        todo: 
         '''
         import subprocess
         post_parameters = {
         'dos':  {'DOS': ['prefix', 'outdir', 'bz_sum', 'ngauss', 'degauss', 
-                        'Emin', 'Emax', 'DeltaE', 'fildo', ]},
+                        'Emin', 'Emax', 'DeltaE', 'fildo', ]
+                        },
         'pp':   {'INPUTPP': ['prefix', 'outdir', 'filplot', 'plot_num', 
                        'spin_component', 'spin_component', 'emin', 'emax', 
                        'delta_e', 'degauss_ldos', 'sample_bias', 'kpoint', 
@@ -422,12 +478,14 @@ class Espresso(ase.calculators.espresso.Espresso):
                 'PLOT': ['nfile', 'filepp', 'weight', 'iflag', 'output_format', 
                     'fileout', 'interpolation', 'e1', 'x0', 'nx', 'e1', 'e2', 
                     'x0', 'nx', 'ny', 'e1', 'e2', 'e3', 'x0', 'nx', 'ny', 'nz', 
-                    'radius', 'nx', 'ny']},
+                    'radius', 'nx', 'ny']
+                    },
         'projwfc': {'PROJWFC': ['prefix', 'outdir', 'ngauss', 'degauss', 
                     'Emin', 'Emax', 'DeltaE', 'lsym', 'pawproj', 'filpdos', 'filproj', 
                     'lwrite_overlaps', 'lbinary_data', 'kresolveddos', 'tdosinboxes', 
                     'n_proj_boxes', 'irmin(3,n_proj_boxes)', 'irmax(3,n_proj_boxes)', 
-                    'plotboxes', ]},
+                    'plotboxes', ]
+                    },
         'hp': {'INPUTHP': ['prefix','outdir','iverbosity','max_seconds','nq1','nq2',
                            'nq3','skip_equivalence_q','determine_num_pert_only',
                            'find_atpert','docc_thr','skip_type','equiv_type',
@@ -435,8 +493,9 @@ class Espresso(ase.calculators.espresso.Espresso):
                            'compute_hp','conv_thr_chi','thresh_init','ethr_nscf',
                            'niter_max','alpha_mix(i)','nmix','num_neigh','lmin','rmax',]},
         'bands': {'BANDS': ['prefix', 'outdir', 'filband', 'spin_component', 'lsigma', 
-                            'lp', 'filp', 'lsym', 'no_overlap', 'plot_2d', 'firstk', 'lastk']},
-        'ph': {'INPUTHP': ['amass', 'outdir', 'prefix', 'niter_ph', 'tr2_ph', 
+                            'lp', 'filp', 'lsym', 'no_overlap', 'plot_2d', 'firstk', 'lastk']
+                            },
+        'ph': {'INPUTPH': ['amass', 'outdir', 'prefix', 'niter_ph', 'tr2_ph', 
                            'alpha_mix(niter)', 'nmix_ph', 'verbosity', 'reduce_io', 
                            'max_seconds', 'fildyn', 'fildrho', 'fildvscf', 'epsil', 
                            'lrpa', 'lnoloc', 'trans', 'lraman', 'eth_rps', 'eth_ns', 
@@ -449,7 +508,12 @@ class Espresso(ase.calculators.espresso.Espresso):
                            'diagonalization', 'read_dns_bare', 'ldvscf_interpolate', 
                            'wpot_dir', 'do_long_range', 'do_charge_neutral', 'start_irr', 
                            'last_irr', 'nat_todo', 'modenum', 'start_q', 'last_q', 
-                           'dvscf_star', 'drho_star', ]},
+                           'dvscf_star', 'drho_star', ]
+                            },
+        'dynmat': {'INPUT': ['fildyn', 'q', 'amass', 'asr', 'axis', 'lperm', 'lplasma', 'filout', 'fileig', 'filmol', 'filxsf', 'loto_2d', 'el_ph_nsig', 'el_ph_sigma']
+                  },
+        'matdyn': {'INPUT': ['asr', 'dos', 'amass', 'flfrc', 'flfrq', 'fldos', 'deltaE', 'nk1', 'nk2', 'nk3', ]
+                  },
         
         }
         kwargs['prefix'] = self.prefix
