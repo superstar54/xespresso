@@ -91,3 +91,22 @@ class Base():
                 futures.append(executor.submit(self.run_atoms, job, atoms))
             for future in as_completed(futures):
                 print(future.result())
+    def build_children(self):
+        pass
+    def run_command(self, command = None):
+        if command is None:
+            command = self.command
+        print('Running %s'%command)
+        try:
+            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
+        except OSError as err:
+            msg = 'Failed to execute "{}"'.format(command)
+            raise EnvironmentError(msg) from err
+        errorcode = proc.wait()
+        if errorcode:
+            path = os.path.abspath(self.directory)
+            msg = ('Command "{}" failed in '
+                   '{} with error code {}'.format(command,
+                                                  path, errorcode))
+            raise CalculationFailed(msg)
+        print('Done')

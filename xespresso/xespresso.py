@@ -125,7 +125,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             kwargs['input_data'] = {}
         ase_parameters = copy.deepcopy(kwargs)
         for key, value in kwargs.items():
-            if key not in ['pseudopotentials', 'kpts', 'kspacing', 'koffset', 'input_data', 'climbing_images', 'path_data']:
+            if key not in ['pseudopotentials', 'kpts', 'kspacing', 'koffset', 'input_data', 'climbing_images', 'path_data', 'crystal_coordinates']:
                 ase_parameters['input_data'][key] = value
                 del ase_parameters[key]
         ase_parameters['input_data']['prefix'] = self.prefix
@@ -139,10 +139,16 @@ class Espresso(ase.calculators.espresso.Espresso):
         '''
         if queue is None:
             queue = self.queue
+        else:
+            self.queue = queue
         if package is None:
             package = self.package
+        else:
+            self.package = package
         if parallel is None:
             parallel = self.parallel
+        else:
+            self.parallel = parallel
         
         command = os.environ.get('ASE_ESPRESSO_COMMAND')
         if 'PACKAGE' in command:
@@ -464,7 +470,11 @@ class Espresso(ase.calculators.espresso.Espresso):
         '''
         todo: 
         '''
-        import subprocess
+        self.post_write_input(package, **kwargs)
+        self.set_queue(package = package, parallel = parallel, queue = queue)
+        self.post_calculate()
+        self.post_read_results()
+    def post_write_input(self, package, **kwargs):
         post_parameters = {
         'dos':  {'DOS': ['prefix', 'outdir', 'bz_sum', 'ngauss', 'degauss', 
                         'Emin', 'Emax', 'DeltaE', 'fildo', ]
@@ -508,31 +518,45 @@ class Espresso(ase.calculators.espresso.Espresso):
                            'diagonalization', 'read_dns_bare', 'ldvscf_interpolate', 
                            'wpot_dir', 'do_long_range', 'do_charge_neutral', 'start_irr', 
                            'last_irr', 'nat_todo', 'modenum', 'start_q', 'last_q', 
-                           'dvscf_star', 'drho_star', ]
+                           'dvscf_star', 'drho_star', ],
+                'LINE': ['xq', 'atom'],
+                # 'qPointsSpecs': ['nqs', 'xq1', 'xq2', 'xq3', 'nq'],
                             },
-        'dynmat': {'INPUT': ['fildyn', 'q', 'amass', 'asr', 'axis', 'lperm', 'lplasma', 'filout', 'fileig', 'filmol', 'filxsf', 'loto_2d', 'el_ph_nsig', 'el_ph_sigma']
+        'dynmat': {'INPUT': ['fildyn', 'q', 'amass', 'asr', 'axis', 'lperm', 'lplasma', 'filout', 
+                             'fileig', 'filmol', 'filxsf', 'loto_2d', 'el_ph_nsig', 'el_ph_sigma']
                   },
-        'matdyn': {'INPUT': ['asr', 'dos', 'amass', 'flfrc', 'flfrq', 'fldos', 'deltaE', 'nk1', 'nk2', 'nk3', ]
+        'matdyn': {'INPUT': ['flfrc', 'asr', 'dos', 'nk1', 'nk2', 'nk3', 'deltaE', 'ndos', 'fldos', 
+                             'flfrq', 'flvec', 'fleig', 'fldvn', 'at', 'l1', 'l2', 'l3', 'ntyp', 
+                             'amass', 'readtau', 'fltau', 'la2F', 'q_in_band_form', 'q_in_cryst_coord', 
+                             'eigen_similarity', 'fd', 'na_ifc', 'nosym', 'loto_2d', 
+                             'loto_disable']
                   },
-        
+        'q2r': {'INPUT': ['fildyn', 'flfrc', 'zasr', 'loto_2d'],},
         }
         kwargs['prefix'] = self.prefix
         package_parameters = post_parameters[package]
         filename = os.path.join(self.directory, '%s.%si' %(self.prefix, package))
         with open(filename, 'w') as f:
             for section, parameters in package_parameters.items():
-                f.write('&%s\n '%section)
-                for key, value in kwargs.items():
-                    if key in parameters:
-                        if isinstance(value, dict):
-                            for subkey, subvalue in value.items():
-                                f.write('  %s(%s) = %s, \n' %(key, subkey, subvalue))
-                        else:
-                            f.write('  %s = %s, \n' %(key, value))
-                f.write('/ \n')
-        self.set_queue(package = package, parallel = parallel, queue = queue)
+                if section != 'LINE':
+                    f.write('&%s\n '%section)
+                    for key, value in kwargs.items():
+                        if key in parameters:
+                            if isinstance(value, dict):
+                                for subkey, subvalue in value.items():
+                                    f.write('  %s(%s) = %s, \n' %(key, subkey, subvalue))
+                            else:
+                                f.write('  %s = %s, \n' %(key, value))
+                    f.write('/ \n')
+                else:
+                    for key, value in kwargs.items():
+                        if key in parameters:
+                            f.write('  %s \n' %(value))
+
+    def post_calculate(self):
+        import subprocess
         command = self.command
-        print('Running %s'%package)
+        print('Running %s'%self.package)
         try:
             proc = subprocess.Popen(command, shell=True, cwd=self.directory)
         except OSError as err:
@@ -543,11 +567,32 @@ class Espresso(ase.calculators.espresso.Espresso):
 
         if errorcode:
             path = os.path.abspath(self.directory)
-            msg = ('Calculator "{}" failed with command "{}" failed in '
-                   '{} with error code {}'.format(self.name, command,
+            msg = ('Command "{}" failed in '
+                   '{} with error code {}'.format(command,
                                                   path, errorcode))
             raise CalculationFailed(msg)
-        print('Done: %s' % package)
+        print('Done: %s' %self.package)
+    def post_read_results(self):
+        '''
+        '''
+        pass
+    def plot_phdos(self, fldos = None, ax = None, output = None):
+        '''
+        '''
+        import matplotlib.pyplot as plt
+        if fldos is None:
+            fldos = self.prefix
+        phdos = np.loadtxt(self.directory+'/%s.phdos' % fldos)
+        self.phdos = phdos
+        if ax is None:
+            fig, ax = plt.subplots(figsize = (6, 3))
+            # ax = plt.gca()
+        ax.plot(self.phdos[:, 0], self.phdos[:, 1], linewidth=0.7)
+        ax.set_xlabel('Frequency (cm^-1)')
+        ax.set_ylabel('DOS (a.u.)')
+        if output is not None:
+            plt.savefig('%s'%output)
+        return ax
     def get_work_function(self, ax = None, inpfile = 'potential.cube', output = None, shift = False):
         import matplotlib.pyplot as plt
         from ase.io.cube import read_cube_data

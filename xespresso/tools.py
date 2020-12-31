@@ -118,7 +118,7 @@ def mypool(jobs, func, showInfo = False):
     pool.join()
 
 def dwubelix(updates = []):
-    file = 'pw err out dos pdos projwfc int xyz path a.xml'
+    file = 'pw err out dos pdos projwfc int xyz path a.xml txt png'
     print('Downloading.....')
     cwd = os.getcwd()
     for update in updates:
