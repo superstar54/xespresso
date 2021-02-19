@@ -3,12 +3,13 @@ import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.parallel import world
 from ase.utils.cext import cextension
-import matplotlib.pyplot as plt
 from xespresso import Espresso
 from ase.geometry import get_layers
 from ase.visualize import view
 import copy
 import matplotlib.pyplot as plt
+from ase.data.colors import jmol_colors
+from ase.data import covalent_radii, atomic_numbers, chemical_symbols
 
 lspins = ['up', 'dw']
 orbitals = ['s', 'p', 'd', 'f']
@@ -16,8 +17,8 @@ orbitals = ['s', 'p', 'd', 'f']
 
 
 class DOS:
-    def __init__(self, calc = None, label = None,
-                 ):
+    def __init__(self, calc = None, label = None, prefix = None,
+                 debug = False, colors = None):
         """Electronic Density Of States object.
 
         calc: quantum espresso calculator object
@@ -26,13 +27,16 @@ class DOS:
         if not calc and not label:
             raise ValueError('Please give one of them: calc or label')
         if label:
-            calc = Espresso(label = label)
+            calc = Espresso(label = label, prefix = prefix, debug = True)
         calc.read_results()
+        self.debug = debug
+        if self.debug:
+            print(calc.results)
         self.directory = calc.directory
         self.label = calc.label
         self.prefix = calc.prefix
         self.efermi = calc.get_fermi_level()
-        self.atoms = calc.atoms
+        self.atoms = calc.results['atoms']
         self.nspins = calc.get_number_of_spins()
         if self.nspins == 0:  self.nspins = 1
     def read_dos(self):
@@ -85,6 +89,7 @@ class DOS:
                         pdos_info[kind]['istate'][istate] = l
         self.kinds = kinds
         self.pdos_info = pdos_info
+        if self.debug: print(self.pdos_info)
     def read_pdos(self):
         '''
         projwfc
@@ -192,12 +197,12 @@ class DOS:
                 newlabel = '%s-%s' % (label, lspins[i])
             else:
                 newlabel = label
-            if color:
+            if color is not None:
                 ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel, color = color)
             else:
                 ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel)
             if fill:
-                if color:
+                if color is not None:
                     ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2, color = color)
                 else:
                     ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2)
@@ -220,9 +225,8 @@ class DOS:
         # ax.set_xlabel('Energy (eV)')
         # ax.set_ylabel('DOS (a.u.)')
         # ax.set_title('%s' % self.prefix)
-        if output is None:
-            output = '{0}-dos.png'.format(self.prefix) 
-            plt.savefig('%s' %output)
+        if output is not None:
+            plt.savefig('%s'%output)
         return ax
     def plot_pdos_tot(self, energies = None, dos = None, 
         Emin = -5, Emax = 5,
@@ -237,9 +241,8 @@ class DOS:
         ax.set_xlabel('Energy (eV)')
         ax.set_ylabel('PDOS (a.u.)')
         ax.set_title('%s' % self.prefix)
-        if output is None:
-            output = '{0}-pdos-tot.png'.format(self.prefix) 
-            plt.savefig('%s' %output)
+        if output is not None:
+            plt.savefig('%s'%output)
         return ax
     def plot_pdos(self, energies = None, pdos_kinds = None, 
                   Emin = -5, Emax = 5,
@@ -257,18 +260,19 @@ class DOS:
             # ax = self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
         for kind, channels in pdos_kinds.items():
             if select and kind not in select: continue
+            number = chemical_symbols.index(kind)
+            color = jmol_colors[number]
             for channel, pdos in channels.items():
                 if select and channel[-1] not in select[kind]: continue
                 for i in range(self.nspins):
                     label = '{0}-{1}'.format(kind, channel)
-                    ax = self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill)
+                    ax = self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill, color = color)
         if legend: ax.legend()
         if xylabel:
             ax.set_xlabel('Energy (eV)')
             ax.set_ylabel('PDOS (a.u.)')
-        if output is None:
-            output = '{0}-pdos.png'.format(self.prefix) 
-            plt.savefig('%s' %output)
+        if output is not None:
+            plt.savefig('%s'%output)
         return ax
     def plot_pdos_layer(self, atoms = None, 
                         layers = None,
@@ -307,9 +311,9 @@ class DOS:
         plt.xlabel('E - E$_{Fermi}$ (eV)', size='16')
         plt.subplots_adjust(hspace=0)
         fig.text(0.05, 0.5, 'PDOS (a.u.)', size='16', va='center', rotation='vertical')
-        if output is None:
-            output = '{0}-pdos.png'.format(self.prefix) 
-            plt.savefig('%s' %output)
+        if output is not None:
+            # output = '{0}-pdos.png'.format(self.prefix) 
+            plt.savefig('%s'%output)
         # view(images)
         return axs, images
     def get_pdos(self, species, orbital):

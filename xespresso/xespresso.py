@@ -19,6 +19,7 @@ from datetime import datetime
 import copy
 import logging
 import sys
+import subprocess
 
 logging.basicConfig(stream=sys.stdout,
                     format=('%(levelname)-8s '
@@ -132,7 +133,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         ase_parameters['input_data']['verbosity'] = 'high'
         self.ase_parameters = ase_parameters
         return ase_parameters
-    def set_queue(self, package = None, parallel = None, queue = None):
+    def set_queue(self, package = None, parallel = None, queue = None, command = None):
         '''
         If queue, change command to "sbatch .job_file".
         The queue information are written into '.job_file'
@@ -149,8 +150,8 @@ class Espresso(ase.calculators.espresso.Espresso):
             parallel = self.parallel
         else:
             self.parallel = parallel
-        
-        command = os.environ.get('ASE_ESPRESSO_COMMAND')
+        if command is None:
+            command = os.environ.get('ASE_ESPRESSO_COMMAND')
         if 'PACKAGE' in command:
             if 'pw' in package:
                 command = command.replace('PACKAGE', package, 1)
@@ -163,10 +164,16 @@ class Espresso(ase.calculators.espresso.Espresso):
             command = command.replace('PARALLEL', parallel)
         if queue:
             script = ''
-            for cf in config_files:
-                if os.path.exists(cf):
-                    file = open(cf, 'r')
-                    script = file.read()
+            if 'config' in queue:
+                cf = os.path.join(os.environ['HOME'], queue['config'])
+                file = open(cf, 'r')
+                script = file.read()
+                del queue['config']
+            else:
+                for cf in config_files:
+                    if os.path.exists(cf):
+                        file = open(cf, 'r')
+                        script = file.read()
             jobname = self.prefix
             with open('%s/.job_file' % self.directory, 'w') as fh:
                 fh.writelines("#!/bin/bash\n")
@@ -379,6 +386,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             else:                
                 self.parameters['input_data']['restart_mode'] = 'from_scratch'
             try:
+                self.results = {}
                 atoms.get_potential_energy()
             except Exception as e:
                 print('Not converge: %s'%e)
@@ -436,6 +444,7 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.directory = os.path.join(self.scf_directory, '%s/'%calculation)
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
         self.label = os.path.join(self.directory, self.prefix)
+        self.set_label(None, self.directory, self.prefix)
         self.set_queue(package = package, parallel = parallel, queue = queue)
     def nscf_calculate(self, ):
         import shutil
@@ -554,7 +563,6 @@ class Espresso(ase.calculators.espresso.Espresso):
                             f.write('  %s \n' %(value))
 
     def post_calculate(self):
-        import subprocess
         command = self.command
         print('Running %s'%self.package)
         try:
@@ -642,8 +650,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             msg = 'Failed to execute "{}"'.format(command)
             raise EnvironmentError(msg) from err
         acf = os.path.join(self.directory, 'ACF.dat')
-
-
+    
     def clean(self):
         '''
         remove wfc, hub files

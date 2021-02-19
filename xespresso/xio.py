@@ -336,6 +336,7 @@ def write_neb_in(filename, images, climbing_images = [], path_data = {},
 def get_atomic_species(pwo):
     '''
     '''
+    atomic_species = []
     with open(pwo) as f:
         lines = f.readlines()
         for idx, line in enumerate(lines):

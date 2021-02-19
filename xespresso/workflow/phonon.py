@@ -111,6 +111,7 @@ class Phonon(Base):
         self.log('')
         self.log("[Phonopy] Phonon DOS:")
         self.omega, self.phdos = self.phonon.get_total_DOS()
+        self.phonon_energies = 0.00414*self.omega
         for omega, dos in np.array(self.phonon.get_total_DOS()).T:
             self.log("%15.7f%15.7f" % (omega, dos))
     def opt(self, **kwargs):
