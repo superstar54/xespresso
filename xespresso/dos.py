@@ -219,7 +219,7 @@ class DOS:
         if dos is None: dos = self.dos
         if energies is None: energies = self.dos_energies
         xindex = (energies>Emin) & (energies<Emax)
-        ax = self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill, color = color)
+        self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill, color = color)
         # ax.legend()
         # plt.grid(linestyle = '--')
         # ax.set_xlabel('Energy (eV)')
@@ -236,7 +236,7 @@ class DOS:
         if energies is None: energies = self.pdos_energies
         xindex = (energies>Emin) & (energies<Emax)
         fig, ax = plt.subplots(figsize = (6, 3))
-        ax = self.plot_data(energies, dos, label = 'pdos', ax = ax, xindex = xindex, fill = fill)
+        self.plot_data(energies, dos, label = 'pdos', ax = ax, xindex = xindex, fill = fill)
         ax.legend()
         ax.set_xlabel('Energy (eV)')
         ax.set_ylabel('PDOS (a.u.)')
@@ -257,16 +257,15 @@ class DOS:
         if ax is None:
             fig, ax = plt.subplots(figsize = (6, 3))
         # if total:
-            # ax = self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
+            # self.plot_data(self.pdos_energies, self.pdos_tot, label = 'pdos', ax = ax, fill = fill)
         for kind, channels in pdos_kinds.items():
             if select and kind not in select: continue
             number = chemical_symbols.index(kind)
             color = jmol_colors[number]
             for channel, pdos in channels.items():
                 if select and channel[-1] not in select[kind]: continue
-                for i in range(self.nspins):
-                    label = '{0}-{1}'.format(kind, channel)
-                    ax = self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill, color = color)
+                label = '{0}-{1}'.format(kind, channel)
+                self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill, color = color)
         if legend: ax.legend()
         if xylabel:
             ax.set_xlabel('Energy (eV)')

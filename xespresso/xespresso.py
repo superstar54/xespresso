@@ -168,7 +168,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                 cf = os.path.join(os.environ['HOME'], queue['config'])
                 file = open(cf, 'r')
                 script = file.read()
-                del queue['config']
+                # del queue['config']
             else:
                 for cf in config_files:
                     if os.path.exists(cf):
@@ -182,6 +182,7 @@ class Espresso(ase.calculators.espresso.Espresso):
                 fh.writelines("#SBATCH --error=%s.err\n" % self.prefix)
                 fh.writelines("#SBATCH --wait\n")
                 for key, value in queue.items():
+                    if key == 'config': continue
                     if value:
                         fh.writelines("#SBATCH --%s=%s\n" %(key, value))
                 fh.writelines("%s \n"%script)
@@ -650,6 +651,29 @@ class Espresso(ase.calculators.espresso.Espresso):
             msg = 'Failed to execute "{}"'.format(command)
             raise EnvironmentError(msg) from err
         acf = os.path.join(self.directory, 'ACF.dat')
+    def read_time(self, ):
+        '''
+        '''
+        pwo = os.path.join(self.directory, self.prefix + '.pwo')
+        with open(pwo, 'r') as f:
+            ts = 0
+            lines = f.readlines()
+            for line in lines[::-1]:
+                if 'PWSCF' in line and 'WALL' in line:
+                    t = line.split('CPU')[-1].split('WALL')[0]
+                    if 's' in t:
+                        ts = float(t.split('m')[-1].split('s')[0])
+                    if 'm' in t:
+                        tm = float(t.split('h')[-1].split('m')[0])
+                        ts += tm*60
+                    if 'h' in t:
+                        th= float(t.split('h')[0])
+                        ts += th*3600
+                    break
+                self.results['time'] = ts
+        return ts
+
+
     
     def clean(self):
         '''

@@ -22,6 +22,7 @@ from ase.geometry import get_layers
 from ase.constraints import FixAtoms
 from ase.formula import Formula
 from ase.visualize import view
+from ase.io import write
 
 from xespresso import Espresso
 from xespresso.tools import mypool, fix_layers, dipole_correction
@@ -40,16 +41,23 @@ mols = {
 
 #view(mols.values())
 class OER_base(Base):
-    def __init__(self, atoms, label = '.', prefix = None, calculator = None, view = False):
+    def __init__(self, atoms, label = '.', prefix = None, calculator = None, molecule_energies = None, view = False):
         Base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view)
         self.set_logger(OERLogger)
+        self.molecule_energies = molecule_energies
+        '''
+        from qedatas import E_h2o, E_h2, E_o2
+        E_h2o = E_h2o + 0.56 - 0.67
+        E_h2 = E_h2 + 0.27 - 0.41
+        E_o2 = 0.10 - 0.64
+        '''
     
 class OER_bulk(OER_base):
-    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indices = [], nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, calculator = None, view = False):
+    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indices = [], nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, calculator = None, molecule_energies = None, view = False):
         '''
         Only one calculation, vc-relax for the bulk
         '''
-        OER_base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view)
+        OER_base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view, molecule_energies = molecule_energies)
         self.children = surfaces
         self.indices = indices
         self.nlayer = nlayer
@@ -89,7 +97,7 @@ class OER_bulk(OER_base):
                 #
                 prefix = '%s%s%s-%s'%(indice[0], indice[1], indice[2], ter)
                 self.images[prefix] = surf
-                surf = OER_pourbaix(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, view = self.view)
+                surf = OER_pourbaix(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, view = self.view, molecule_energies = self.molecule_energies)
                 self.children[prefix] = surf
             self.log()
         self.log('Total number of surfaces: {0}\n'.format(len(self.children)))
@@ -110,7 +118,7 @@ class OER_bulk(OER_base):
         return terminations
     
 class OER_pourbaix(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], view = False):
+    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], molecule_energies = None, view = False):
         '''
         Calculate surface Pourbaix diagram.
         coverages: list
@@ -121,7 +129,7 @@ class OER_pourbaix(OER_base):
             In OER_pourbaix, site is position. e.g. {'fcc': [0.5, 0.5, 3]}. 
             If None, the ontop site will be found and used.
         '''
-        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, view = view)
+        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, view = view, molecule_energies = molecule_energies)
         if not sites_dict:
             self.sites_dict = self.get_sites_dict(self.atoms)
         else:
@@ -149,7 +157,7 @@ class OER_pourbaix(OER_base):
         for prefix in children:
             surf = self.images[prefix]
             self.images[prefix] = surf
-            surf = OER_surface(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator)
+            surf = OER_surface(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies)
             self.log('{0:15s}: {1}'.format('    Stable surface', prefix))
             self.children[prefix] = surf
         self.log()
@@ -218,9 +226,8 @@ class OER_pourbaix(OER_base):
         '''
         mh = potential
         '''
-        from qedatas import E_h2o, E_h2
-        E_h2o = E_h2o + 0.56 - 0.67
-        E_h2 = E_h2 + 0.27 - 0.41
+        E_h2o = self.molecule_energies['H2O']
+        E_h2 = self.molecule_energies['H2']
         if not E_O:
             E_O = E_h2o - E_h2
         if not E_OH:
@@ -268,7 +275,7 @@ class OER_pourbaix(OER_base):
         return sites_dict
 
 class OER_surface(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None):
+    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, molecule_energies = None):
         '''
         Calculate surface Pourbaix diagram.
         sites_dict: dict
@@ -276,7 +283,7 @@ class OER_surface(OER_base):
             If None, the ontop atom will be found and used.
             This is different from the site in OER_pourbaix.
         '''
-        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator)
+        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies)
         self.atoms = atoms
         if not sites_dict:
             self.sites_dict = self.get_oer_sites_dict(self.atoms)
@@ -294,7 +301,7 @@ class OER_surface(OER_base):
             if len(sites) == 0: continue
             ind = sites[0]
             self.images[prefix] = self.atoms
-            child = OER_site(self.atoms, label = os.path.join(self.label, prefix), site = ind, prefix = prefix, calculator = self.calculator)
+            child = OER_site(self.atoms, label = os.path.join(self.label, prefix), site = ind, prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies)
             self.log('{0:15s}: {1}'.format('    sites', prefix))
             self.children[prefix] = child
             self.log()
@@ -318,12 +325,12 @@ class OER_surface(OER_base):
         return sites_dict
 
 class OER_site(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, site = None, calculator = None):
+    def __init__(self, atoms, label = '', prefix = None, site = None, calculator = None, molecule_energies = None):
         '''
         site: int
             The atom index for the active site.
         '''
-        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator)
+        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies)
         self.site = site
         self.site_symbol = atoms[self.site].symbol
         self.children = {}
@@ -339,6 +346,7 @@ class OER_site(OER_base):
             self.log('{0:10s}  Energy: {1:1.3f}'.format(job, result['energy']))
         #
         self.get_free_energy()
+        self.write_image()
         self.log('-'*60)
         self.log('Gibbs free energies (eV): ')
         for e in self.free_energies:
@@ -405,10 +413,8 @@ class OER_site(OER_base):
         '''
         mh = potential
         '''
-        from qedatas import E_h2o, E_h2, E_o2
-        E_h2o = E_h2o + 0.56 - 0.67
-        E_h2 = E_h2 + 0.27 - 0.41
-        E_o2 = 0.10 - 0.64
+        E_h2o = self.molecule_energies['H2O']
+        E_h2 = self.molecule_energies['H2']
         if not E_O:
             E_O = E_h2o - E_h2
         if not E_OH:
@@ -442,6 +448,12 @@ class OER_site(OER_base):
             self.plot_free_energy([0, E_O, E_OOH, E_O2, E_OH], ['OH', 'O', 'OOH', 'O2', 'OH'], ax = ax)
         fig.savefig(os.path.join(self.label, '%s-free-energy.png'%self.prefix))
         self.over_potential = max(self.free_energies) - 1.23
+    def write_image(self, ):
+        for job in self.results:
+            atoms = self.results[job]['atoms']
+            write(os.path.join(self.label, '%s-top.png'%job), atoms * (2, 2, 1))
+            write(os.path.join(self.label, '%s-side.png'%job), atoms * (2, 2, 1), rotation='-90x')
+            write(os.path.join(self.label, '%s.png'%job), atoms * (2, 2, 1), rotation='10z,-80x')
             
     def plot_free_energy(self, E, labels, ax = None):
         if ax is None:

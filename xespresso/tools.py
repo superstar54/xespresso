@@ -167,6 +167,8 @@ def summary(updates = [], prefix = 'datas'):
                     # t = calc.get_time()
                     # calc.results['time'] = t
                     datas[i] = calc.results
+                    atoms = calc.results['atoms']
+                    atoms.write(os.path.join(calc.directory, '%s.cif'%calc.prefix))
                     # results = ana(i, calc)
                     # df.loc[len(df)] = results
                 except Exception as e:
