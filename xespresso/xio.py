@@ -4,6 +4,7 @@ import json
 import pickle
 import operator as op
 import warnings
+from ase import constraints
 import numpy as np
 from ase.atoms import Atoms
 from ase.calculators.calculator import kpts2ndarray, kpts2sizeandoffsets
@@ -375,7 +376,7 @@ def read_espresso_input(fileobj, neb = False):
     # calc = Espresso(pseudopotentials=pseudopotentials, 
     #                 input_data = input_data,
     #                 kpts=kpts)
-    return atoms, input_data, pseudopotentials, kpts
+    return atoms, input_data, pseudopotentials, kpts, constraints
 
 def read_espresso_asei(fileobj):
     """Parse Quantum ESPRESSO input parameters
@@ -388,3 +389,45 @@ def write_espresso_asei(fileobj, atoms, parameters):
     """
     with open(fileobj, 'wb') as fp:
         pickle.dump([atoms, parameters], fp)
+
+def get_atomic_constraints(pwo, n_atoms):
+    """
+    Read constraints from QE output
+    """
+    constraints = []
+    with open(pwo, 'r') as f:
+        lines = f.readlines()
+        indexes = []
+        for i, line in enumerate(lines):
+            if 'ATOMIC_POSITIONS' in line:
+                indexes.append(i)
+        if len(indexes) > 0:
+            image_index = indexes[0] + 1
+            for line in lines[image_index:image_index + n_atoms + 1]:
+                split_line = line.split()
+                if len(split_line) > 4:
+                    constraint = (float(split_line[4]),
+                                  float(split_line[5]),
+                                  float(split_line[6]))
+                else:
+                    constraint = None
+                constraints.append(constraint)
+    constraints = get_constraint(constraints)
+    return constraints
+
+def get_constraint(constraint_idx):
+    """
+    Map constraints from QE output to FixAtoms or FixCartesian constraint
+    """
+    if not np.any(constraint_idx):
+        return None
+
+    a = [a for a, c in enumerate(constraint_idx) if np.all(c is not None)]
+    mask = [[(ic + 1) % 2 for ic in c] for c in constraint_idx
+            if np.all(c is not None)]
+
+    if np.all(np.array(mask)) == 1:
+        constraint = FixAtoms(a)
+    else:
+        constraint = FixCartesian(a, mask)
+    return constraint

@@ -189,27 +189,32 @@ class DOS:
             projs_kinds.append(proj_kinds)
         self.projs = projs
         self.projs_kinds = projs_kinds
-    def plot_data(self, energies, dos, label, xindex, ax = None, fill = True, color = None):
+    def plot_data(self, energies, dos, label, xindex, ax = None, fill = True, color = None, smearing = None):
         if ax is None:
             ax = plt.gca()
         for i in range(self.nspins):
+            if not smearing:
+                xmesh = energies[xindex]
+                ymesh = dos[i][xindex]
+            else:
+                xmesh, ymesh = self.smearing(energies[xindex], dos[i][xindex], sigma=smearing[0], de = smearing[0])
             if self.nspins == 2:
                 newlabel = '%s-%s' % (label, lspins[i])
             else:
                 newlabel = label
             if color is not None:
-                ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel, color = color)
+                ax.plot(xmesh, (-1)**i*ymesh, linewidth=0.7, label = newlabel, color = color)
             else:
-                ax.plot(energies[xindex], (-1)**i*dos[i][xindex], linewidth=0.7, label = newlabel)
+                ax.plot(xmesh, (-1)**i*ymesh, linewidth=0.7, label = newlabel)
             if fill:
                 if color is not None:
-                    ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2, color = color)
+                    ax.fill_between(xmesh, (-1)**i*ymesh, 0, alpha = 0.2, color = color)
                 else:
-                    ax.fill_between(energies[xindex], (-1)**i*dos[i][xindex], 0, alpha = 0.2)
+                    ax.fill_between(xmesh, (-1)**i*ymesh, 0, alpha = 0.2)
         return ax
     def plot_dos(self, energies = None, dos = None, 
         Emin = -5, Emax = 5, color = None,
-        ax = None, fill = True, output = None):
+        ax = None, fill = True, output = None, smearing = None):
         '''
         '''
         import matplotlib.pyplot as plt
@@ -219,7 +224,7 @@ class DOS:
         if dos is None: dos = self.dos
         if energies is None: energies = self.dos_energies
         xindex = (energies>Emin) & (energies<Emax)
-        self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill, color = color)
+        self.plot_data(energies, dos, label = 'dos', ax = ax, xindex = xindex, fill = fill, color = color, smearing = smearing)
         # ax.legend()
         # plt.grid(linestyle = '--')
         # ax.set_xlabel('Energy (eV)')
@@ -230,13 +235,13 @@ class DOS:
         return ax
     def plot_pdos_tot(self, energies = None, dos = None, 
         Emin = -5, Emax = 5,
-        ax = None, fill = True, output = None):
+        ax = None, fill = True, output = None, smearing = None):
         # print(self.pdos_tot)
         if dos is None: dos = self.pdos_tot
         if energies is None: energies = self.pdos_energies
         xindex = (energies>Emin) & (energies<Emax)
         fig, ax = plt.subplots(figsize = (6, 3))
-        self.plot_data(energies, dos, label = 'pdos', ax = ax, xindex = xindex, fill = fill)
+        self.plot_data(energies, dos, label = 'pdos', ax = ax, xindex = xindex, fill = fill, smearing = smearing)
         ax.legend()
         ax.set_xlabel('Energy (eV)')
         ax.set_ylabel('PDOS (a.u.)')
@@ -247,7 +252,7 @@ class DOS:
     def plot_pdos(self, energies = None, pdos_kinds = None, 
                   Emin = -5, Emax = 5,
                   ax = None, total = False, select = None, fill = True, 
-                  output = None, legend = False, xylabel = True):
+                  output = None, legend = False, xylabel = True, smearing = None):
         '''
         '''
         if energies is None: energies = self.pdos_energies
@@ -265,7 +270,7 @@ class DOS:
             for channel, pdos in channels.items():
                 if select and channel[-1] not in select[kind]: continue
                 label = '{0}-{1}'.format(kind, channel)
-                self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill, color = color)
+                self.plot_data(energies, pdos, label = label, ax = ax, xindex = xindex, fill = fill, color = color, smearing = smearing)
         if legend: ax.legend()
         if xylabel:
             ax.set_xlabel('Energy (eV)')
@@ -282,6 +287,7 @@ class DOS:
                         total = False, 
                         select = None, 
                         fill = True, 
+                        smearing = None,
                         output = None):
         '''
         
@@ -302,7 +308,7 @@ class DOS:
             pdos_kinds = self.merge_kinds(index)
             self.plot_pdos(energies = self.pdos_energies, pdos_kinds = pdos_kinds, select = select, 
                            Emin = Emin, Emax = Emax, ax = axs[iax], 
-                           legend = False, xylabel = False)
+                           legend = False, xylabel = False, fill = fill, smearing = smearing)
             axs[iax].axvline(0, color = 'b')
             # print(iax, ilayer)
             # print(index)
@@ -329,6 +335,25 @@ class DOS:
         # second moment
         wd2 = np.trapz(energies**2 * dos, energies) / Nstates
         return d_center, d_width
+    def smearing(self, energies, dos, sigma = 0.1, de=0.01, total = False):
+        '''
+        'natoms':         the total number of atoms of this kind in the structure
+        'sigma':          sigma for the gaussian distribution (default: 0.01)
+        'de':     integration step size (default: 0.01)
+        '''
+        npnts = len(energies)
+        emin = min(energies)
+        emax = max(energies)
+        nmesh = int((emax-emin)/de)+1   
+        xmesh = np.linspace(emin, emax, nmesh)
+        ymesh = np.zeros((nmesh, 1))
+        fact = de/(sigma*np.sqrt(2.0*np.pi))
+        for i in range(nmesh):
+            func = np.exp(-(xmesh[i]-energies)**2/(2.0*sigma**2))*fact
+            ymesh[i] = func.dot(dos[:])
+        # ymesh /= natoms  # normalize
+        # return energies, dos
+        return xmesh, ymesh
     
 def compare_pdos(dos1, index1, dos2, index2):
     '''

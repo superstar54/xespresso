@@ -123,7 +123,7 @@ def dwubelix(updates = []):
     cwd = os.getcwd()
     for update in updates:
         os.chdir(update)
-        os.system('dwubelix.py %s'%file)
+        os.system('dwubelix-sc.py %s'%file)
         os.chdir(cwd)
     print('Finished')
 def ana(dire, calc):

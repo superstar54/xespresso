@@ -8,10 +8,10 @@ Run PACKAGE.x jobs.
 """
 
 
-from ase import io
+from ase import constraints, io
 from ase.calculators.calculator import FileIOCalculator, CalculationFailed, equal, compare_atoms
 import ase.calculators.espresso
-from xespresso.xio import write_espresso_in, read_espresso_input, read_espresso_asei, write_espresso_asei, get_atomic_species
+from xespresso.xio import write_espresso_in, read_espresso_input, read_espresso_asei, write_espresso_asei, get_atomic_species, get_atomic_constraints
 import os
 import shutil
 import numpy as np
@@ -77,6 +77,9 @@ class Espresso(ase.calculators.espresso.Espresso):
             print('debug is: ', debug)
             self.logger.setLevel(debug)
         self.set_label(restart, label, prefix)
+        self.scf_directory = None
+        self.scf_parameters = None
+        self.scf_results = None
         kwargs = self.set_kwargs(kwargs)
         FileIOCalculator.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
                                   label = self.label, atoms = atoms, **kwargs)
@@ -110,9 +113,6 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.asei = os.path.join(self.directory, '%s.asei'%self.prefix)
         self.asei_temp = os.path.join(self.directory, '.%s.asei_temp'%self.prefix)
         self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
-        self.scf_directory = None
-        self.scf_parameters = None
-        self.scf_results = None
         # self.logger.fd = os.path.join(self.directory, '%s.txt'%self.prefix)
         self.logger.debug('Label: %s'%(self.label))
         self.logger.debug('Directory: %s'%(self.directory))
@@ -249,6 +249,9 @@ class Espresso(ase.calculators.espresso.Espresso):
             try:
                 output = io.read(pwo)
                 atomic_species = get_atomic_species(pwo)
+                constraints = get_atomic_constraints(pwo, len(output))
+                output.set_constraint(None)
+                output.set_constraint(constraints)
                 if atomic_species: output.info['species'] = atomic_species
             except Exception as e:
                 print(pwo, e)
@@ -423,6 +426,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     def nscf(self, calculation = 'nscf', package = 'pw', queue = False, parallel = '', kpts = (10, 10, 10), **kwargs):
         import copy
         # save scf parameters
+        # save scf parameters
         if not self.scf_directory:
             print(self.directory)
             self.scf_directory = self.directory
@@ -437,28 +441,31 @@ class Espresso(ase.calculators.espresso.Espresso):
         self.parameters['kpts'] = kpts
         self.parameters['calculation'] = calculation
         self.parameters['verbosity'] = 'high'
-        self.parameters['restart_mode'] = 'restart'
+        self.parameters['outdir'] = '../'
+        # self.parameters['restart_mode'] = 'restart'
         for key, value in kwargs.items():
             self.parameters[key] = value
+        
         # create working directory
-        self.save_directory_old = os.path.join(self.scf_directory, '%s.save'%self.prefix)
         self.directory = os.path.join(self.scf_directory, '%s/'%calculation)
-        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
+        self.label = os.path.join(self.directory, self.prefix)
+        self.nscf_asei = os.path.join(self.directory, '%s.nscf_asei'%self.prefix)
+        # create working directory
+        self.directory = os.path.join(self.scf_directory, '%s/'%calculation)
         self.label = os.path.join(self.directory, self.prefix)
         self.set_label(None, self.directory, self.prefix)
         self.set_queue(package = package, parallel = parallel, queue = queue)
     def nscf_calculate(self, ):
-        import shutil
-        if not os.path.exists(self.save_directory):
-            os.makedirs(self.save_directory)
-        files = ['charge-density.hdf5', 'charge-density.dat', 'data-file-schema.xml', 'paw.txt', 'occup.txt']
-        for species, pseudo in self.parameters['pseudopotentials'].items():
-            files.append(pseudo)
-        for file in files:
-            file = os.path.join(self.save_directory_old, '%s'%file)
-            if os.path.exists(file):
-                # print(file)
-                shutil.copy(file, self.save_directory)
+        # read information of the charge-density file
+        chargeFile = os.path.join(self.scf_directory, '%s.save/charge-density.dat'%self.prefix)
+        if os.path.isfile(self.nscf_asei):
+            info = os.stat(chargeFile)
+            old_parameters, old_info = read_espresso_asei(self.nscf_asei)
+            if info == old_info and self.parameters == old_parameters:
+                self.logger.debug('Read result successfully!')
+                return 0
+        else:
+            write_espresso_asei(self.nscf_asei, self.parameters, info)
         print('-'*30)
         print('\n {0} calculation in {1} ......'.format(
                     self.parameters['calculation'], 
@@ -544,6 +551,9 @@ class Espresso(ase.calculators.espresso.Espresso):
         'q2r': {'INPUT': ['fildyn', 'flfrc', 'zasr', 'loto_2d'],},
         }
         kwargs['prefix'] = self.prefix
+        kwargs['outdir'] = '../'
+        self.directory = os.path.join(self.scf_directory, '%s/'%package)
+        self.set_label(None, self.directory, self.prefix)
         package_parameters = post_parameters[package]
         filename = os.path.join(self.directory, '%s.%si' %(self.prefix, package))
         with open(filename, 'w') as f:
@@ -686,8 +696,8 @@ class Espresso(ase.calculators.espresso.Espresso):
                 if key in file:
                     os.remove(os.path.join(self.directory, file))
         files = os.listdir(self.save_directory)
-        keys = ['wfc']
-        for file in files:
-            for key in keys:
-                if key in file:
-                    os.remove(os.path.join(self.save_directory, file))
+        # keys = ['wfc']
+        # for file in files:
+        #     for key in keys:
+        #         if key in file:
+        #             os.remove(os.path.join(self.save_directory, file))

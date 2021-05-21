@@ -9,12 +9,19 @@
 7 free energy diagram
 8 report
 
+to do
+1) add zero point energy calculation
+
+
 
 '''
 import os
 import numpy as np
 from copy import deepcopy
 from time import sleep
+from numpy.core.numeric import indices
+
+from numpy.core.records import array
 
 from ase.atoms import Atoms
 from ase.build import surface
@@ -24,6 +31,12 @@ from ase.formula import Formula
 from ase.visualize import view
 from ase.io import write
 
+#
+from pymatgen.analysis.adsorption import AdsorbateSiteFinder
+from pymatgen.core.surface import SlabGenerator
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from pymatgen.io.ase import AseAtomsAdaptor
+#
 from xespresso import Espresso
 from xespresso.tools import mypool, fix_layers, dipole_correction
 from xespresso.workflow.base import Base
@@ -41,35 +54,110 @@ mols = {
 
 #view(mols.values())
 class OER_base(Base):
-    def __init__(self, atoms, label = '.', prefix = None, calculator = None, molecule_energies = None, view = False):
+    def __init__(self, atoms, name = 'base', label = '.', prefix = None, calculator = None, molecule_energies = None, view = False):
         Base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view)
+        self.name = name
         self.set_logger(OERLogger)
         self.molecule_energies = molecule_energies
         '''
-        from qedatas import E_h2o, E_h2, E_o2
+        from qedatas import E_h2o, E_h2, G_o2
         E_h2o = E_h2o + 0.56 - 0.67
         E_h2 = E_h2 + 0.27 - 0.41
-        E_o2 = 0.10 - 0.64
+        G_o2 = 0.10 - 0.64
         '''
+    def get_sites_dict(self, atoms, excludes = []):
+        '''
+        get the surface site for adsorption
+        1) for OER_pourbaix, ['O', 'N'] sites are generally excluded.
+        2) for OER_site
+                metal: Ti, La -> OH -> O -> OOH -> O2
+                O:          O -> OOH -> O2 -> OH 
+                H:          OH -> O -> OOH -> O2
+        
+        Return
+        sites: dict
+            e.g. {'Pt': [0.0, 0.0, 5.0]}
+        '''
+        from scipy.spatial.distance import squareform, pdist
+        slabs = AseAtomsAdaptor.get_structure(atoms)
+        asf_slabs = AdsorbateSiteFinder(slabs)
+        ads_sites = asf_slabs.find_adsorption_sites(distance=0.0)
+        sites = {}
+        count = 0
+        # view(atoms)
+        for pos in ads_sites['ontop']:
+            poss = atoms.get_positions()
+            poss = np.append(poss, pos).reshape(-1, 3)
+            ind  = np.argsort(squareform(pdist(poss))[-1])[1]
+            symbol = atoms[ind].symbol
+            if symbol in excludes: continue
+            sites['site-%s-%s'%(count, symbol)] = pos + np.array([0, 0, 2.0])
+        return sites
     
 class OER_bulk(OER_base):
-    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indices = [], nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, calculator = None, molecule_energies = None, view = False):
+    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indexs = [], min_slab_size = 8.0, min_vacuum_size = 15.0,  nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, pourbaix_input = {}, surface_input = {}, calculator = None, molecule_energies = None, view = False):
         '''
         Only one calculation, vc-relax for the bulk
         '''
         OER_base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view, molecule_energies = molecule_energies)
-        self.children = surfaces
-        self.indices = indices
+        self.name = 'bulk'
+        self.children = {}
+        self.surfaces = surfaces
+        self.indexs = indexs
+        self.min_slab_size = min_slab_size
+        self.min_vacuum_size = min_vacuum_size
         self.nlayer = nlayer
         self.fix = fix
         self.tol = tol
-    def build_children(self, indices = None, nlayer = None, fix = None, tol = None):
+        self.pourbaix_input = pourbaix_input
+        self.surface_input = surface_input
+    def get_slabs(self, atoms = None, index = None):
+        """
+        """
+        from math import ceil
+        if not atoms:
+            atoms = self.atoms
+        struct = AseAtomsAdaptor.get_structure(self.atoms)
+        struct = SpacegroupAnalyzer(struct).get_conventional_standard_structure()
+        slabgen = SlabGenerator(struct, 
+                             miller_index=index,
+                             min_slab_size=self.min_slab_size, 
+                             min_vacuum_size=self.min_vacuum_size, 
+                             center_slab=False)
+        slabs = {}
+        for n, slab in enumerate(slabgen.get_slabs()):
+            slab = AseAtomsAdaptor.get_atoms(slab)
+            self.set_ase_cell(slab)
+            a, b, c, alpha, beta, gamma = slab.get_cell_lengths_and_angles()
+            supercell = [ceil(5/a), ceil(5/b), ceil(5/c)]
+            # print(a, b, c, supercell)
+            slab = slab*supercell
+            slabs[n] = slab.copy()
+        return slabs
+
+    def set_ase_cell(self, surf):
+        from numpy.linalg import norm
+        a1, a2, a3 = surf.cell
+        surf.set_cell([a1, a2,
+                    np.cross(a1, a2) * np.dot(a3, np.cross(a1, a2)) /
+                    norm(np.cross(a1, a2))**2])
+        #
+        a1, a2, a3 = surf.cell
+        surf.set_cell([(norm(a1), 0, 0),
+                    (np.dot(a1, a2) / norm(a1),
+                        np.sqrt(norm(a2)**2 - (np.dot(a1, a2) / norm(a1))**2), 0),
+                    (0, 0, norm(a3))],
+                    scale_atoms=True)
+        surf.wrap()
+
+
+    def build_children(self, surfaces = None, nlayer = None, fix = None, tol = None):
         '''
         surfaces and terminations
 
         '''
-        if not indices:
-            indices = self.indices
+        if not surfaces:
+            surfaces = self.surfaces
         if not nlayer:
             nlayer = self.nlayer
         if not fix:
@@ -79,25 +167,32 @@ class OER_bulk(OER_base):
         self.log('-'*60)
         self.log('Build surface:\n')
         count = 0
-        for indice in indices:
+        for index, ters in self.indexs.items():
             count += 1
-            self.log('{0:15s}: {1}'.format('%s. Indice'%count, indice))
-            atoms = surface(self.atoms, indice, nlayer + 2, vacuum=1)
-            atoms.pbc = [True, True, True]
-            layers = get_layers(atoms, (0, 0, 1), tol)[0]
-            terminations = self.get_terminations(atoms, layers)
-            for ter, ind in terminations.items():
+            self.log('{0:15s}: {1}'.format('%s. index'%count, index))
+            # atoms = surface(self.atoms, index, nlayer + 2, tol = self.tol, vacuum=1)
+            # atoms.pbc = [True, True, True]
+            # print(self.tol)
+            # layers = get_layers(atoms, (0, 0, 1), self.tol)[0]
+            # print(layers)
+            # terminations = self.get_terminations(atoms, layers)
+            terminations = self.get_slabs(self.atoms, index)
+            print(terminations)
+            # if len(ters) == 0:
+                # ters = terminations.keys()
+            for ter, surf in terminations.items():
+                # if ter not in ters: continue
                 self.log('{0:15s}: {1}'.format('    termination', ter))
-                surf = atoms.copy()
-                index = [j for j in range(len(surf)) if layers[j] in range(ind, ind - nlayer, -1)]
-                surf = surf[index]
-                surf.positions[:, 2] -= min(surf.positions[:, 2]) - 0.01
-                surf.cell[2][2] = max(surf.positions[:, 2]) + 15
+                # surf = atoms.copy()
+                # index = [j for j in range(len(surf)) if layers[j] in range(ind, ind - nlayer, -1)]
+                # surf = surf[index]
+                # surf.positions[:, 2] -= min(surf.positions[:, 2]) - 0.01
+                # surf.cell[2][2] = max(surf.positions[:, 2]) + 15
                 surf = fix_layers(surf, (0, 0, 1), tol, fix)
                 #
-                prefix = '%s%s%s-%s'%(indice[0], indice[1], indice[2], ter)
+                prefix = '%s%s%s-%s'%(index[0], index[1], index[2], ter)
                 self.images[prefix] = surf
-                surf = OER_pourbaix(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, view = self.view, molecule_energies = self.molecule_energies)
+                surf = OER_pourbaix(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, view = self.view, molecule_energies = self.molecule_energies, **self.pourbaix_input, surface_input = self.surface_input)
                 self.children[prefix] = surf
             self.log()
         self.log('Total number of surfaces: {0}\n'.format(len(self.children)))
@@ -108,17 +203,41 @@ class OER_bulk(OER_base):
         'SrO' and 'TiO2' 
         Search from the top to the bottom
         '''
+        from ase.build import minimize_rotation_and_translation
+        from ase.calculators.calculator import compare_atoms, equal
+        import pprint
         nlayer = max(layers) + 1
         terminations = {}
+        natoms = len(slab)
         for i in range(nlayer - 2, 0, -1):
             atoms = slab[layers == i]
             formula = atoms.get_chemical_formula(mode = 'hill')
-            if formula not in terminations:
-                terminations[formula] = i
+            print(formula)
+            inds = [j for j in range(natoms) if layers[j] in range(i, i - self.nlayer, -1)]
+            atoms = slab[inds]
+            atoms.wrap()
+            if not terminations:
+                terminations['%s-%s'%(formula, i)] = atoms.copy()
+            else:
+                flag = True
+                atoms1 = atoms.copy()
+                for ter, atoms2 in terminations.items():
+                    if len(atoms1) != len(atoms2):
+                        flag = False
+                    else:
+                        minimize_rotation_and_translation(atoms2, atoms1)
+                        if equal(atoms1.arrays, atoms2.arrays, tol=0.1):
+                            flag = False
+                if flag:
+                    terminations['%s-%s'%(formula, i)] = atoms.copy()
+                    print(formula, ter)
+                    # view([atoms1, atoms2])
+        pprint.pprint(terminations)
+        # view(terminations.values())
         return terminations
     
 class OER_pourbaix(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], molecule_energies = None, view = False):
+    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], surface_input = {}, molecule_energies = None, view = False):
         '''
         Calculate surface Pourbaix diagram.
         coverages: list
@@ -129,13 +248,15 @@ class OER_pourbaix(OER_base):
             In OER_pourbaix, site is position. e.g. {'fcc': [0.5, 0.5, 3]}. 
             If None, the ontop site will be found and used.
         '''
+        self.name = 'pourbaix'
         OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, view = view, molecule_energies = molecule_energies)
         if not sites_dict:
-            self.sites_dict = self.get_sites_dict(self.atoms)
+            self.sites_dict = self.get_sites_dict(self.atoms, excludes=['O', 'N'])
         else:
             self.sites_dict = sites_dict
         self.coverages = coverages
         self.adsorbates = [''] + adsorbates
+        self.surface_input = surface_input
         self.images = {}
         self.results = {}
         self.children = {'0-O-0-OH': atoms}
@@ -147,17 +268,17 @@ class OER_pourbaix(OER_base):
             return
         #
         self.run_coverage()
-        fig, ax = plt.subplots(1, 1)
-        ax, children = self.plot_pourbaix_diagram(self.results, ax = ax)
+        # fig, ax = plt.subplots(1, 1)
+        ax, children = self.plot_pourbaix_diagram(self.results) #, ax = ax)
         filename = os.path.join(self.label, '%s-pourbaix_diagram.png'%self.prefix)
-        fig.savefig(filename)
+        # fig.savefig(filename)
         self.log('-'*60)
         self.log('Save pourbaix diagram to: {0}'.format(filename))
         self.log('Stable surfaces from pourbaix diagram:')
         for prefix in children:
             surf = self.images[prefix]
             self.images[prefix] = surf
-            surf = OER_surface(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies)
+            surf = OER_surface(surf, label = os.path.join(self.label, prefix), prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies, **self.surface_input)
             self.log('{0:15s}: {1}'.format('    Stable surface', prefix))
             self.children[prefix] = surf
         self.log()
@@ -199,6 +320,7 @@ class OER_pourbaix(OER_base):
             site_mols.append(self.adsorbates)
         self.nsite = len(self.sites)
         self.log('Number of sites: {0}'.format(self.nsite))
+        if len(sites_dict) == 0: return
         combinations = list(itertools.product(*site_mols))
         self.log('Coverages: {0}'.format(self.coverages))
         for combination in combinations:
@@ -222,30 +344,30 @@ class OER_pourbaix(OER_base):
         self.log('Total number of structures: {0}'.format(len(self.images)))
     
     
-    def plot_pourbaix_diagram(self, results, ax = None, E_O = None, E_OH = None):
+    def plot_pourbaix_diagram(self, results, ax = None, G_O = None, G_OH = None):
         '''
         mh = potential
         '''
         E_h2o = self.molecule_energies['H2O']
         E_h2 = self.molecule_energies['H2']
-        if not E_O:
-            E_O = E_h2o - E_h2
-        if not E_OH:
-            E_OH = E_h2o - E_h2/2.0
+        if not G_O:
+            G_O = E_h2o - E_h2
+        if not G_OH:
+            G_OH = E_h2o - E_h2/2.0
         potential = np.linspace(0, 2, 20)
-        if ax is None:
-            ax = plt.gca()
+        # if ax is None:
+            # ax = plt.gca()
         E0 = results['0-O-0-OH']['energy']
         for job, result in results.items():
             E = result['energy']
             no = int(job.split('-')[0])
             noh = int(job.split('-')[2])
-            dE = E - E0 - noh*(E_OH + potential) - no*(E_O + 2*potential)
-            ax.plot(potential, dE, label = job)
+            dE = E - E0 - noh*(G_OH + potential) - no*(G_O + 2*potential)
+            # ax.plot(potential, dE, label = job)
             self.results[job]['pourbaix_energy'] = dE
-        ax.legend()
-        ax.set_xlabel('Potential (V)')
-        ax.set_ylabel('$\Delta$ G (eV)')
+        # ax.legend()
+        # ax.set_xlabel('Potential (V)')
+        # ax.set_ylabel('$\Delta$ G (eV)')
         StableSurfaces = []
         for i in range(20):
             Emin = 1000
@@ -258,24 +380,10 @@ class OER_pourbaix(OER_base):
             StableSurfaces.append(jobmin)
         StableSurfaces = list(set(StableSurfaces))
         return ax, StableSurfaces
-    def get_sites_dict(self, atoms, miller = (0, 0, 1), tol = 1.0):
-        '''
-        '''
-        layers = get_layers(atoms, miller, tol)[0]
-        last_layer = max(layers)
-        index = [j for j in range(len(atoms)) if layers[j] ==  last_layer]
-        sites_dict = {}
-        count = 0
-        for i in index:
-            symbol = atoms[i].symbol
-            if symbol not in ['O', 'N']:
-                count += 1
-                if symbol not in sites_dict:
-                    sites_dict['%s-%s'%(count, symbol)] = atoms[i].position
-        return sites_dict
+    
 
 class OER_surface(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, molecule_energies = None):
+    def __init__(self, atoms, label = '', prefix = None, activate_species = None, sites_dict = None, calculator = None, molecule_energies = None):
         '''
         Calculate surface Pourbaix diagram.
         sites_dict: dict
@@ -283,10 +391,14 @@ class OER_surface(OER_base):
             If None, the ontop atom will be found and used.
             This is different from the site in OER_pourbaix.
         '''
+        self.name = 'surface'
         OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies)
         self.atoms = atoms
+        self.activate_species = activate_species
         if not sites_dict:
-            self.sites_dict = self.get_oer_sites_dict(self.atoms)
+            self.sites_dict = self.get_sites_dict(self.atoms)
+        else:
+            self.sites_dict = sites_dict
         self.children = {}
     def run(self):
         self.build_children()
@@ -297,157 +409,194 @@ class OER_surface(OER_base):
         '''
         self.log('-'*60)
         self.log('OER sites:')
-        for prefix, sites in self.sites_dict.items():
-            if len(sites) == 0: continue
-            ind = sites[0]
+        for prefix, pos in self.sites_dict.items():
+            ele = prefix.split('-')[-1]
+            if ele not in self.activate_species: continue
             self.images[prefix] = self.atoms
-            child = OER_site(self.atoms, label = os.path.join(self.label, prefix), site = ind, prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies)
+            child = OER_site(self.atoms, label = os.path.join(self.label, prefix), position = pos, prefix = prefix, calculator = self.calculator, molecule_energies = self.molecule_energies)
             self.log('{0:15s}: {1}'.format('    sites', prefix))
             self.children[prefix] = child
             self.log()
         self.log('Total number of OER sites: {0}\n'.format(len(self.children)))
-    def get_oer_sites_dict(self, atoms, miller = (0, 0, 1), tol = 1.0):
-        '''
-        metal: Ti, La -> OH -> O -> OOH -> O2
-        O:          O -> OOH -> O2 -> OH 
-        H:          OH -> O -> OOH -> O2
-        '''
-        layers = get_layers(atoms, miller, tol)[0]
-        last_layer = max(layers)
-        index = [j for j in range(len(atoms)) if layers[j] ==  last_layer]
-        sites_dict = {'O': [], 'H': []}
-        for i in index:
-            symbol = atoms[i].symbol
-            if symbol not in sites_dict:
-                sites_dict[symbol] = [i]
-            else:
-                sites_dict[symbol].append(i)
-        return sites_dict
+    
 
 class OER_site(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, site = None, calculator = None, molecule_energies = None):
+    def __init__(self, atoms, label = '', prefix = None, site_type = 'ontop', site = None, height = 2.0, calculator = None, molecule_energies = None, view = False):
         '''
-        site: int
+        site: type, position
+            (1) 'ontop', index, symbol
+            (2) 'bridge'
+            (3) 'hollow'
             The atom index for the active site.
+            For 'ontop' site, the 'O' and 'H' vacancy pathway are possible.
+            e.g. site = {'ontop':[1, 2.0]}
+                 site = {'bridge', [1, 2, 2.0]}
+                 site = {'position', [0.0, 0.0, 3.0]}
+
         '''
-        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies)
+        self.name = 'site'
+        OER_base.__init__(self, atoms, name = self.name, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies, view = view)
+        self.images = {}
+        self.site_type = site_type
         self.site = site
-        self.site_symbol = atoms[self.site].symbol
+        self.height = height
+        self.site_symbol = site_type
+        if site_type.upper() == 'ONTOP':
+            self.site_symbol = atoms[site].symbol
+            self.site_position = atoms[site].position + np.array([0, 0, height])
+        elif site_type.upper() == 'BRIDGE':
+            self.site_position = (atoms[site[0]].position + atoms[site[1]].position)/2.0+ np.array([0, 0, height])
+        elif site_type.upper() == 'HOLLOW':
+            self.site_position = (atoms[site[0]].position + 
+                                   atoms[site[1]].position  + 
+                                   atoms[site[2]].position)/2.0+ np.array([0, 0, height])
+        elif site_type.upper() == 'POSITION':
+            self.site_position = site + np.array([0, 0, height])
+
         self.children = {}
+        self.calcs = {}
+        self.zpes = {}
+        self.free_energies = {}
     def run(self):
         #
         self.build_oer_adsorbate()
-        #
-        self.pool_atoms(self.children)
+        if self.view:
+            self.view_images(self.children)
+            return
+        # geometry relaxiton
+        self.pool_atoms(self.children, self.geo_relax_espresso)
         self.log('-'*60)
         self.log('Image energies (eV):')
-        self.log('{0:10s}  Energy: {1:1.3f}'.format(self.site_symbol, self.atoms.calc.results['energy']))
+        self.log('{0: <20}  Energy: {1:1.3f}'.format('Clean Surface', self.atoms.calc.results['energy']))
         for job, result in self.results.items():
-            self.log('{0:10s}  Energy: {1:1.3f}'.format(job, result['energy']))
-        #
+            self.log('    {0:<20}  {1:1.3f}'.format(job, result['energy']))
+            self.children[job] = result['atoms']
+        # pdos
+        self.pool_atoms(self.children, self.pdos)
+        # vibration calculation to get zero point energy
+        self.pool_atoms(self.children, self.vib_zpe)
+        self.log('-'*60)
+        self.log('ZPE energies (eV):')
+        for job, zpe in self.zpes.items():
+            self.log('    {0:<20}  {1:1.3f}'.format(job, zpe))
+        # calculate the oer over potential
         self.get_free_energy()
         self.write_image()
         self.log('-'*60)
         self.log('Gibbs free energies (eV): ')
-        for e in self.free_energies:
-            self.log('        {0:1.2f}'.format(e))
+        for step, e in zip(self.steps, self.free_energies):
+            self.log('    {0:<10}    {1:1.2f}'.format(step, e))
         self.log('{0:10s}: {1:1.2f} eV'.format('Over potential', self.over_potential))
+        print('{0:10s}: {1:1.2f} eV'.format('Over potential', self.over_potential))
         # view(self.children.values())
         return 'Over potential', self.over_potential
+
     def build_oer_adsorbate(self, ):
         '''
         '''
         self.log('-'*60)
         self.log('Adsoption site: index ({0})  symbol({1})'.format(self.site, self.site_symbol))
         self.log('OER adsorbate:')
-        ind = self.site
         atoms = self.atoms
-        if self.site_symbol not in ['H', 'O']:
+        label = self.label.replace('/', '_')
+        print(self.site_position)
+        if self.site_symbol not in ['H', 'O'] :
             for prefix, mol in mols.items():
                 # print(prefix, mol)
-                self.log('    %s'%prefix)
+                job = '%s_%s'%(label, prefix)
+                self.log('    %s'%job)
                 ads = mol.copy()
                 natoms = atoms.copy()
-                ads.translate(atoms[ind].position - ads[0].position + [0, 0, 1.9])
+                ads.translate(self.site_position - ads[0].position)
                 natoms = natoms + ads
-                self.children[prefix] = natoms
+                self.children[job] = natoms
         # O
+        ind = self.site
         if self.site_symbol == 'O':
             atoms = self.atoms.copy()
             del atoms[[ind]]
             self.log('    O2')
-            self.children['O2'] = atoms.copy()
+            self.children['%s_%s'%(label, 'O2')] = atoms.copy()
             for prefix, mol in mols.items():
                 # print(prefix, mol)
                 if prefix == 'O': continue
-                self.log('    %s'%prefix)
+                job = '%s_%s'%(label, prefix)
+                self.log('    %s'%job)
                 ads = mol.copy()
                 natoms = atoms.copy()
                 ads.translate(self.atoms[ind].position - ads[0].position)
                 natoms = natoms + ads
-                self.children[prefix] = natoms
-        # OH
-        if self.site_symbol == 'H':
+                self.children[job] = natoms
+        elif self.site_symbol == 'H':
             atoms = self.atoms.copy()
             dis = atoms.get_distance(ind, range(len(atoms)))
             indo = dis.index(min(dis))
             # O
-            self.log('    O')
+            job = '%s_%s'%(label, 'O')
+            self.log('    %s'%job)
             natoms = atoms.copy()
             del natoms[[ind]]
-            self.children['O'] = natoms
+            self.children[job] = natoms
             # O2
-            self.log('    O2')
+            job = '%s_%s'%(label, 'O2')
+            self.log('    %s'%job)
             natoms = atoms.copy()
             del natoms[[ind, indo]]
-            self.children['O2'] = natoms
+            self.children[job] = natoms
             # OOH
-            self.log('    OOH')
-            ads = mols['OOH'].copy()
+            job = '%s_%s'%(label, 'OOH')
+            self.log('    %s'%job)
+            ads = mols[job].copy()
             natoms = atoms.copy()
             ads.translate(self.atoms[indo].position - ads[0].position)
             natoms = natoms + ads
-            self.children['OOH'] = natoms
+            self.children[job] = natoms
         self.log('Total number of OER adsorbate: {0}\n'.format(len(self.children)))
-    def get_free_energy(self, results = None, E_O = None, E_OH = None, E_OOH = None, E_H = None):
+    def get_free_energy(self, results = None, G_O = None, G_OH = None, G_OOH = None, E_H = None):
         '''
         mh = potential
         '''
-        E_h2o = self.molecule_energies['H2O']
-        E_h2 = self.molecule_energies['H2']
-        if not E_O:
-            E_O = E_h2o - E_h2
-        if not E_OH:
-            E_OH = E_h2o - E_h2/2.0
-        if not E_OOH:
-            E_OOH = 2*E_h2o - 3*E_h2/2.0
+        G_h2o = self.molecule_energies['H2O']
+        G_h2 = self.molecule_energies['H2']
+        if not G_O:
+            G_O = G_h2o - G_h2
+        if not G_OH:
+            G_OH = G_h2o - G_h2/2.0
+        if not G_OOH:
+            G_OOH = 2*G_h2o - 3*G_h2/2.0
         if not E_H:
-            E_H = E_h2/2.0
+            E_H = G_h2/2.0
         E0 = self.atoms.calc.results['energy']
-        fig, ax = plt.subplots()
+        # fig, ax = plt.subplots()
+        label = self.label.replace('/', '_')
         if self.atoms[self.site].symbol not in ['H', 'O']:
-            E_OH = self.results['OH']['energy'] - E0 - E_OH
-            E_O = self.results['O']['energy'] - E0 - E_O
-            E_OOH = self.results['OOH']['energy'] - E0 - E_OOH
-            E_O2 = 4.92
-            self.free_energies = [E_OH, E_O - E_OH, E_OOH - E_O, E_O2 - E_OOH]
-            self.plot_free_energy([0, E_OH, E_O, E_OOH, E_O2], ['*', 'OH', 'O', 'OOH', 'O2'], ax = ax)
+            dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OH')]
+            dG_O = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
+            dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OOH + self.zpes['%s_%s'%(label, 'OOH')]
+            dG_O2 = 4.92
+            self.steps = ['OH', 'O', 'OOH', 'O2']
+            self.free_energies = [dG_OH, dG_O, dG_OOH, dG_O2]
+            # self.plot_free_energy([0, G_OH, G_O, G_OOH, G_O2], ['*', 'OH', 'O', 'OOH', 'O2'], ax = ax)
         if self.atoms[self.site].symbol == 'O':
-            E_OOH = self.results['OOH']['energy'] - E0 - E_OH
-            E_O2 = self.results['O2']['energy'] - E0 + E_O
-            E_OH = self.results['OH']['energy'] - E0 - E_H
-            E_O = 4.92
-            self.free_energies = [E_OOH, E_O2 - E_OOH, E_OH - E_O2, E_O - E_OH]
-            self.plot_free_energy([0, E_OOH, E_O2, E_OH, E_O], ['O', 'OOH', 'O2', 'OH', 'O'], ax = ax)
+            dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OOH')]
+            dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_O + self.zpes['%s_%s'%(label, 'O2')]
+            dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - E_H + self.zpes['%s_%s'%(label, 'OH')]
+            dG_O = 4.92
+            self.steps = ['OOH', 'O2', 'OH', 'O']
+            self.free_energies = [dG_OOH, dG_O2, dG_OH, dG_O]
+            # self.plot_free_energy([0, G_OOH, G_O2, G_OH, G_O], ['O', 'OOH', 'O2', 'OH', 'O'], ax = ax)
         if self.atoms[self.site].symbol == 'H':
-            E_O = self.results['OH']['energy'] - E0 + E_H
-            E_OOH = self.results['O']['energy'] - E0 - E_O
-            E_O2 = self.results['O2']['energy'] - E0 + E_OH
-            E_OH = 4.92
-            self.free_energies = [E_O, E_OOH - E_O, E_O2 - E_OOH, E_OH - E_O2]
-            self.plot_free_energy([0, E_O, E_OOH, E_O2, E_OH], ['OH', 'O', 'OOH', 'O2', 'OH'], ax = ax)
-        fig.savefig(os.path.join(self.label, '%s-free-energy.png'%self.prefix))
-        self.over_potential = max(self.free_energies) - 1.23
+            dG_O = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 + E_H + self.zpes['%s_%s'%(label, 'OH')]
+            dG_OOH = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
+            dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_OH + self.zpes['%s_%s'%(label, 'O2')]
+            dG_OH = 4.92
+            self.steps = ['O', 'OOH', '2', 'OH']
+            self.free_energies = [dG_O, dG_OOH, dG_O2, dG_OH]
+            # self.plot_free_energy([0, G_O, G_OOH, G_O2, G_OH], ['OH', 'O', 'OOH', 'O2', 'OH'], ax = ax)
+        # fig.savefig(os.path.join(self.label, '%s-free-energy.png'%self.prefix))
+        self.over_potential = max([self.free_energies[1] - self.free_energies[0], 
+                                   self.free_energies[2] - self.free_energies[1],
+                                   self.free_energies[3] - self.free_energies[2]]) - 1.23
     def write_image(self, ):
         for job in self.results:
             atoms = self.results[job]['atoms']
