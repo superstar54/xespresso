@@ -34,7 +34,6 @@ git clone https://github.com/superstar54/xespresso.git
 ```
 
 Add xespresso to your PYTHONPATH. On windows, you can edit the system environment variables.
-
 ``` sh
 export PYTHONPATH="/path/to/xespresso":$PYTHONPATH
 export ASE_ESPRESSO_COMMAND="/path/to/PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo"
@@ -159,6 +158,8 @@ calc.plot()
 <img src="examples/images/neb.png" width="500"/>
 
 
+## Workflow
+### Oxygen evolution reaction (OER) calculation
 
 ### To do lists:
 * add `qPointsSpecs` and `Line-of-input` for phonon input file

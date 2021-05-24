@@ -159,6 +159,7 @@ class Base():
                            'tprnfor': True,
                            'outdir': '../',
                            'prefix': '%s'%job,
+                           'startingpot':'file',
                            'startingwfc':'file',
                            'etot_conv_thr':1e-6,
                             })

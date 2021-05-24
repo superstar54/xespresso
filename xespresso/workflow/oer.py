@@ -9,11 +9,6 @@
 7 free energy diagram
 8 report
 
-to do
-1) add zero point energy calculation
-
-
-
 '''
 import os
 import numpy as np
@@ -423,15 +418,34 @@ class OER_surface(OER_base):
 class OER_site(OER_base):
     def __init__(self, atoms, label = '', prefix = None, site_type = 'ontop', site = None, height = 2.0, calculator = None, molecule_energies = None, view = False):
         '''
-        site: type, position
-            (1) 'ontop', index, symbol
-            (2) 'bridge'
-            (3) 'hollow'
-            The atom index for the active site.
-            For 'ontop' site, the 'O' and 'H' vacancy pathway are possible.
-            e.g. site = {'ontop':[1, 2.0]}
-                 site = {'bridge', [1, 2, 2.0]}
-                 site = {'position', [0.0, 0.0, 3.0]}
+        Workflow:
+        0. Read the surface slab
+        1. Build the adsorption site
+        2. Add O*, OH* and OOH*, and relax the structure
+        3. Calculate the dos and pdos
+        4. Calculate the ZPE energy using Vibrations module
+        5. Calculate the Gibbs free energy
+        6. Generate the report for OER overpotential
+
+        atoms:
+            The surface slab, from previous optmization calculation.
+        model_type: 
+            (1) 'ontop', (2) 'bridge', (3) 'hollow'. For 'ontop' site, the 'O' and 'H' vacancy pathway are possible.
+        site: 
+            index for the adsoprtion. 
+        height: 
+            height of the O*, OH* and OOH* from the adsorption site.
+        
+        Examples:
+        >>> oer = OER_site(atoms_opt,
+                    label = 'oer/Pt-001-ontop',
+                    site_type = 'ontop',
+                    site = -1,
+                    height=2.0,
+	                calculator = parameters, 
+                    molecule_energies = molecule_energies,
+                    )
+        >>> oer.run()
 
         '''
         self.name = 'site'
@@ -458,6 +472,9 @@ class OER_site(OER_base):
         self.zpes = {}
         self.free_energies = {}
     def run(self):
+        """
+        Function build all the main workflow
+        """
         #
         self.build_oer_adsorbate()
         if self.view:
@@ -492,8 +509,10 @@ class OER_site(OER_base):
         return 'Over potential', self.over_potential
 
     def build_oer_adsorbate(self, ):
-        '''
-        '''
+        """
+        Add O*, OH* and OOH*, and relax the structure
+        For 'ontop' site, the 'O' and 'H' vacancy pathway are possible.
+        """
         self.log('-'*60)
         self.log('Adsoption site: index ({0})  symbol({1})'.format(self.site, self.site_symbol))
         self.log('OER adsorbate:')
@@ -553,9 +572,8 @@ class OER_site(OER_base):
             self.children[job] = natoms
         self.log('Total number of OER adsorbate: {0}\n'.format(len(self.children)))
     def get_free_energy(self, results = None, G_O = None, G_OH = None, G_OOH = None, E_H = None):
-        '''
-        mh = potential
-        '''
+        """
+        """
         G_h2o = self.molecule_energies['H2O']
         G_h2 = self.molecule_energies['H2']
         if not G_O:

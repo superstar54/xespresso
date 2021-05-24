@@ -37,7 +37,7 @@ class Espresso(ase.calculators.espresso.Espresso):
     implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time']
     command = 'PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo'
 
-    def __init__(self, restart=None, ignore_bad_restart_file=False,
+    def __init__(self, restart=None, 
                  label='xespresso', prefix = None, atoms=None, package = 'pw', parallel = '',
                  queue = None, debug = False, **kwargs):
         """
@@ -72,16 +72,16 @@ class Espresso(ase.calculators.espresso.Espresso):
               >>> calc.nscf(calculation = 'nscf', kpts=(4, 4, 4))
               >>> calc.nscf_calculate()
         """
+        print("{0:=^60}".format(package))
         self.logger = logger
         if debug:
-            print('debug is: ', debug)
             self.logger.setLevel(debug)
         self.set_label(restart, label, prefix)
         self.scf_directory = None
         self.scf_parameters = None
         self.scf_results = None
         kwargs = self.set_kwargs(kwargs)
-        FileIOCalculator.__init__(self, restart = self.directory, ignore_bad_restart_file = True,
+        FileIOCalculator.__init__(self, restart = self.directory, 
                                   label = self.label, atoms = atoms, **kwargs)
         if atoms:
             self.atoms = atoms
@@ -362,6 +362,28 @@ class Espresso(ase.calculators.espresso.Espresso):
                     self.logger.debug('JOB DONE')
                     return 0, fromfile, line
         return 4, fromfile, line
+    def read_convergence_post(self, package = 'pw'):
+        '''
+        Read the status of the calculation.
+        {
+        '0': 'Done',
+        }
+        '''
+        
+        output = self.label + '.%so'%package
+        if not os.path.exists(output):
+            # print('%s not exists'%output)
+            return False, 'No pwo output file'
+        with open(output, 'r') as f:
+            lines = f.readlines()
+            if len(lines) == 0: return False, 'pwo file has nothing'
+            nlines = len(lines)
+            n = min([100, nlines])
+            for line in lines[-n:-1]:
+                if line.rfind('JOB DONE.') > -1:
+                    self.logger.debug('%s'%line)
+                    return True, line
+        return False, line
     def run(self, atoms = None, restart = False):
         '''
         run and restart
@@ -370,6 +392,7 @@ class Espresso(ase.calculators.espresso.Espresso):
             self.atoms = atoms
         if not restart:
             try:
+                self.atoms.calc = self
                 self.atoms.get_potential_energy()
                 # self.calculate()
             except Exception as e:
@@ -427,8 +450,8 @@ class Espresso(ase.calculators.espresso.Espresso):
         import copy
         # save scf parameters
         # save scf parameters
+        print("{0:=^60}".format(calculation))
         if not self.scf_directory:
-            print(self.directory)
             self.scf_directory = self.directory
         if not self.scf_parameters:
             self.scf_parameters = copy.deepcopy(self.parameters)
@@ -458,41 +481,60 @@ class Espresso(ase.calculators.espresso.Espresso):
     def nscf_calculate(self, ):
         # read information of the charge-density file
         chargeFile = os.path.join(self.scf_directory, '%s.save/charge-density.dat'%self.prefix)
-        if os.path.isfile(self.nscf_asei):
-            info = os.stat(chargeFile)
-            old_parameters, old_info = read_espresso_asei(self.nscf_asei)
-            if info == old_info and self.parameters == old_parameters:
-                self.logger.debug('Read result successfully!')
-                return 0
-        else:
-            write_espresso_asei(self.nscf_asei, self.parameters, info)
-        print('-'*30)
-        print('\n {0} calculation in {1} ......'.format(
-                    self.parameters['calculation'], 
-                    self.directory))
+        self.state_info = os.stat(chargeFile)
+        self.state_parameters = self.parameters
+        output, meg = self.read_convergence_post('pw')
+        if output:
+            if os.path.isfile(self.nscf_asei):
+                system_changes =  self.check_state_post(self.nscf_asei)
+                if not system_changes:
+                    self.logger.debug('Use previous results!')
+                    return 0
+        write_espresso_asei(self.nscf_asei, self.state_info, self.state_parameters)
         self.calculate()
         # self.read_results()
 
-    def get_time(self, ):
-        t = 0
-        filename = os.path.join(self.directory, '%s.pwo'%self.prefix)
-        with open(filename) as f:
-            lines = f.readlines()
-            for line in lines[-200:]:
-                if 'init_run     :' in line or 'electrons    :' in line:
-                    t += float(line.split('CPU')[1].split('s WALL')[0])
-        self.results['time'] = t
-        return t
+    
     def post(self, queue = False, package = 'dos', parallel = '', **kwargs):
         '''
         todo: 
         '''
-        self.post_write_input(package, **kwargs)
+        print('{0:=^60}'.format(package))
+        self.directory = os.path.join(self.scf_directory, '%s/'%package)
+        self.set_label(None, self.directory, self.prefix)
+        self.post_asei = os.path.join(self.directory, '%s.post_asei'%self.prefix)
+        kwargs['prefix'] = self.prefix
+        kwargs['outdir'] = '../'
+        self.state_parameters = copy.deepcopy(kwargs)
+        for wfc in ['wfc1', 'wfcdw1']:
+            wfcFile = os.path.join(self.scf_directory, '%s.save/%s.dat'%(self.prefix, wfc))
+            if os.path.isfile(wfcFile):
+                self.state_info = os.stat(wfcFile)
+        output, meg = self.read_convergence_post(package)
+        if output:
+            self.logger.debug('Previous calculation done.')
+            if os.path.isfile(self.post_asei):
+                system_changes =  self.check_state_post(self.post_asei)
+                if not system_changes:
+                    self.logger.debug('Use previous results!')
+                    return 0
+        write_espresso_asei(self.post_asei, self.state_info, self.state_parameters)
+        self.post_write_input(package, **self.state_parameters)
         self.set_queue(package = package, parallel = parallel, queue = queue)
         self.post_calculate()
         self.post_read_results()
+    def check_state_post(self, asei):
+        old_state_info, old_state_parameters = read_espresso_asei(asei)
+        if not self.state_info == old_state_info:
+            self.logger.debug('File in save changed')
+            return True
+        elif not self.state_parameters == old_state_parameters:
+            self.logger.debug('Parameters changed')
+            return True
+        else:
+            return False
     def post_write_input(self, package, **kwargs):
-        post_parameters = {
+        state_parameters = {
         'dos':  {'DOS': ['prefix', 'outdir', 'bz_sum', 'ngauss', 'degauss', 
                         'Emin', 'Emax', 'DeltaE', 'fildo', ]
                         },
@@ -550,11 +592,9 @@ class Espresso(ase.calculators.espresso.Espresso):
                   },
         'q2r': {'INPUT': ['fildyn', 'flfrc', 'zasr', 'loto_2d'],},
         }
-        kwargs['prefix'] = self.prefix
-        kwargs['outdir'] = '../'
-        self.directory = os.path.join(self.scf_directory, '%s/'%package)
-        self.set_label(None, self.directory, self.prefix)
-        package_parameters = post_parameters[package]
+        
+        
+        package_parameters = state_parameters[package]
         filename = os.path.join(self.directory, '%s.%si' %(self.prefix, package))
         with open(filename, 'w') as f:
             for section, parameters in package_parameters.items():
@@ -682,9 +722,16 @@ class Espresso(ase.calculators.espresso.Espresso):
                     break
                 self.results['time'] = ts
         return ts
-
-
-    
+    def get_time(self, ):
+        t = 0
+        filename = os.path.join(self.directory, '%s.pwo'%self.prefix)
+        with open(filename) as f:
+            lines = f.readlines()
+            for line in lines[-200:]:
+                if 'init_run     :' in line or 'electrons    :' in line:
+                    t += float(line.split('CPU')[1].split('s WALL')[0])
+        self.results['time'] = t
+        return t
     def clean(self):
         '''
         remove wfc, hub files
@@ -701,3 +748,4 @@ class Espresso(ase.calculators.espresso.Espresso):
         #     for key in keys:
         #         if key in file:
         #             os.remove(os.path.join(self.save_directory, file))
+    

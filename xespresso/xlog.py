@@ -71,7 +71,7 @@ class XLogger():
     def print_atoms(self, atoms):
         self()
         self('{0:15s}: {1}'.format('    Formula', atoms.get_chemical_formula()))
-        self('{0:15s}: {1}'.format('    Cell', np.round(np.asarray(atoms.get_cell_lengths_and_angles()), 3)))
+        self('{0:15s}: {1}'.format('    Cell', np.round(np.asarray(atoms.cell.cellpar()), 3)))
         self('{0:15s}: {1}'.format('    PBC', atoms.pbc))
         self('{0:15s}:'.format('    Info'))
         self.print_dict(atoms.info, sep = '        ')
