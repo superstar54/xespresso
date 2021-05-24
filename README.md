@@ -161,6 +161,32 @@ calc.plot()
 ## Workflow
 ### Oxygen evolution reaction (OER) calculation
 
+The workflow includes four modules: 
+* OER_bulk
+* OER_pourbaix
+* OER_surface
+* OER_site
+
+
+The workflow can handle: 
+* Generate surface slab model from bulk structure
+* Determine the surface adsorption site
+* Determine the surface coverage(*, O*, OH*), Pourbaix diagram
+* Calculate the Zero-point energy
+
+
+```python
+oer = OER_site(slab,
+               label = 'oer/Pt-001-ontop',
+               site_type = 'ontop',
+               site = -1,
+               height=2.0,
+	           calculator = parameters, 
+               molecule_energies = molecule_energies,
+               )
+oer.run()
+```
+
 ### To do lists:
 * add `qPointsSpecs` and `Line-of-input` for phonon input file
 

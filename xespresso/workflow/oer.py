@@ -92,7 +92,9 @@ class OER_base(Base):
 class OER_bulk(OER_base):
     def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indexs = [], min_slab_size = 8.0, min_vacuum_size = 15.0,  nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, pourbaix_input = {}, surface_input = {}, calculator = None, molecule_energies = None, view = False):
         '''
-        Only one calculation, vc-relax for the bulk
+        Generate surface slab model from bulk structure
+
+        To do: adding vc-relax for the bulk
         '''
         OER_base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view, molecule_energies = molecule_energies)
         self.name = 'bulk'
@@ -380,7 +382,6 @@ class OER_pourbaix(OER_base):
 class OER_surface(OER_base):
     def __init__(self, atoms, label = '', prefix = None, activate_species = None, sites_dict = None, calculator = None, molecule_energies = None):
         '''
-        Calculate surface Pourbaix diagram.
         sites_dict: dict
             the active site, should be the atom in the structure. e.g. {'Pt': [2]}. 
             If None, the ontop atom will be found and used.
