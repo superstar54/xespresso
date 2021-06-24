@@ -12,6 +12,8 @@ from ase.constraints import FixAtoms, FixCartesian
 from ase.data import chemical_symbols, atomic_numbers
 from ase.io.espresso import read_espresso_in, construct_namelist, grep_valence, SSSP_VALENCE, read_fortran_namelist
 from ase.units import create_units
+from pprint import pprint
+from xespresso.utils import check_type
 
 
 def write_espresso_in(filename, atoms, input_data={}, pseudopotentials=None,
@@ -67,8 +69,8 @@ def build_section_str(atoms, species_info, input_data, input_parameters):
     input_parameters['system']['nat'] = len(atoms)
 
     #
-    if 'input_ntyp' in input_data:
-        for key, value in input_data['input_ntyp'].items():
+    if 'INPUT_NTYP' in input_data:
+        for key, value in input_data['INPUT_NTYP'].items():
             for species in value:
                 if species in species_info:
                     mag_str = '{0}({1})'.format(key, species_info[species]['index'])
@@ -378,12 +380,82 @@ def read_espresso_input(fileobj, neb = False):
     #                 kpts=kpts)
     return atoms, input_data, pseudopotentials, kpts, constraints
 
-def read_espresso_asei(fileobj):
+def sort_qe_input(parameters, package = 'PW'):
+    """
+    """
+    from xespresso.input_parameters import qe_namespace, default_parameters
+    import copy
+    pw_parameters = qe_namespace[package]
+    if 'input_data' not in parameters:
+        parameters['input_data'] = {}
+    sorted_parameters = copy.deepcopy(parameters)
+    unuse_parameters = {}
+    # section_names = ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS', 'CELL', 'ATOMIC_SPECIES', 'K_POINTS', 'CELL_PARAMETERS', 'CONSTRAINTS', 'OCCUPATIONS', 'ATOMIC_VELECITIES', 'ATOMIC_FORCES']
+    section_names = ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS', 'CELL', 'INPUT_NTYP']
+    for section in section_names:
+        if section not in sorted_parameters['input_data']: sorted_parameters['input_data'][section] = {}
+    for key, value in parameters.items():
+        if key in ['pseudopotentials', 'kpts', 'kspacing', 'koffset', 'input_data', 'climbing_images', 'path_data', 'crystal_coordinates']:
+            continue
+        flag = False
+        for section in section_names:
+            if key.upper() == section and isinstance(value, dict):
+                sorted_parameters['input_data'][section].update(value)
+                flag = True
+                del sorted_parameters[key]
+                break
+            if section.upper() == 'INPUT_NTYP': continue
+            if key in pw_parameters[section]:
+                sorted_parameters['input_data'][section][key] = value
+                flag = True
+                del sorted_parameters[key]
+                break
+        if not flag:
+            unuse_parameters[key] = value
+            del sorted_parameters[key]
+    input_data = copy.deepcopy(sorted_parameters['input_data'])
+    for key, value in input_data.items():
+        flag = False
+        if key.upper() in section_names:
+            sorted_parameters['input_data'][key.upper()] = sorted_parameters['input_data'].pop(key)
+            continue
+        for section in section_names:
+            if section.upper() == 'INPUT_NTYP':
+                continue
+            if key in pw_parameters[section]:
+                sorted_parameters['input_data'][section][key] = value
+                flag = True
+                del sorted_parameters['input_data'][key]
+                break
+        if not flag:
+            unuse_parameters[key] = value
+            del sorted_parameters['input_data'][key]
+    return sorted_parameters, unuse_parameters
+    #
+def check_qe_input(input_parameters, package = 'PW'):
+    from xespresso.input_parameters import qe_namespace, default_parameters
+    from xespresso.utils import check_type
+    pw_parameters = qe_namespace[package]
+    for section, parameters in input_parameters.items():
+        if section == 'INPUT_NTYP':
+            for key, subparas in parameters.items():
+                for value in subparas.values():
+                    check_type(key, value, pw_parameters)
+        else:
+            for key, value in parameters.items():
+                check_type(key, value, pw_parameters)
+
+def read_espresso_asei(fileobj, package = 'PW'):
     """Parse Quantum ESPRESSO input parameters
     """
     with open(fileobj, 'rb') as fp:
         atoms, parameters = pickle.load(fp)
-    return atoms, parameters
+    if package == 'PW':
+        sorted_parameters, unuse_parameters = sort_qe_input(parameters)
+        check_qe_input(sorted_parameters['input_data'], package)
+    else:
+        sorted_parameters = parameters
+    return atoms, sorted_parameters
 def write_espresso_asei(fileobj, atoms, parameters):
     """save Quantum ESPRESSO input parameters
     """
@@ -410,7 +482,7 @@ def get_atomic_constraints(pwo, n_atoms):
                                   float(split_line[5]),
                                   float(split_line[6]))
                 else:
-                    constraint = None
+                    constraint = (None, None, None)
                 constraints.append(constraint)
     constraints = get_constraint(constraints)
     return constraints

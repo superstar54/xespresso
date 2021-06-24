@@ -9,6 +9,7 @@ import pickle
 import multiprocessing
 import numpy as np
 #====================================================
+
 def get_nbnd(atoms = None, scale = 1.2, pseudopotentials = {}, nspin = 1, input_data = {}):
     input_parameters = construct_namelist(input_data)
     atomic_species_str, species_info, total_valence = build_atomic_species_str(atoms, input_parameters, pseudopotentials)

@@ -41,19 +41,20 @@ import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 
 #----------------------------------
-mols = {
-'O' : Atoms('O'),
-'OH' : Atoms('OH', positions = [[0, 0, 0], [0.6, 0.7, 0.15]]),
-'OOH' : Atoms('OOH', positions = [[0, 0, 0], [0.8, 0.9, 0.0], [1.4, 1.6, 0.45]]),
-}
+
 
 #view(mols.values())
 class OER_base(Base):
-    def __init__(self, atoms, name = 'base', label = '.', prefix = None, calculator = None, molecule_energies = None, view = False):
-        Base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view)
+    def __init__(self, atoms, name = 'oer', label = '.', prefix = None, calculator = None, molecule_energies = None, view = False, debug = False):
+        Base.__init__(self, atoms, label = label, prefix = prefix ,calculator=calculator, view = view, debug=debug)
         self.name = name
         self.set_logger(OERLogger)
         self.molecule_energies = molecule_energies
+        self.mols = {
+                    'O' : Atoms('O'),
+                    'OH' : Atoms('OH', positions = [[0, 0, 0], [0.6, 0.7, 0.15]]),
+                    'OOH' : Atoms('OOH', positions = [[0, 0, 0], [0.8, 0.9, 0.0], [1.4, 1.6, 0.45]]),
+                    }
         '''
         from qedatas import E_h2o, E_h2, G_o2
         E_h2o = E_h2o + 0.56 - 0.67
@@ -83,14 +84,77 @@ class OER_base(Base):
         for pos in ads_sites['ontop']:
             poss = atoms.get_positions()
             poss = np.append(poss, pos).reshape(-1, 3)
-            ind  = np.argsort(squareform(pdist(poss))[-1])[1]
+            ind  = np.argsort(squareform(pdist(poss))[-1])[1] - 1
+            # print(ind)
             symbol = atoms[ind].symbol
             if symbol in excludes: continue
             sites['site-%s-%s'%(count, symbol)] = pos + np.array([0, 0, 2.0])
         return sites
+    def vib_zpe(self, job, atoms):
+        from ase.vibrations import Vibrations
+        self.log('-'*60)
+        self.log('Run ZEP calculation: {0}'.format(job))
+        label = os.path.join(self.label, job)
+        label = os.path.join(label, 'vib')
+        # copy file
+        calculator = deepcopy(self.calculator)
+        dip = dipole_correction(atoms, edir = 3)
+        calculator.update(dip)
+        calculator.update({'calculation':'scf',
+                           'tstress': True,
+                           'tprnfor': True,
+                           'outdir': '../',
+                           'prefix': '%s'%job,
+                           'startingpot':'file',
+                           'startingwfc':'file',
+                           'etot_conv_thr':1e-6,
+                           'disk_io': 'none',
+                            })
+        # better to restart from previous geo_relax calculation
+        calc = Espresso(label = label,
+                        **calculator,
+                        )
+        atoms.calc = calc
+        if job[-1] == 'O':
+            indices = [-1]
+        elif job[-2:] == 'OH' and job[-3:] != 'OOH':
+            indices = [-1, -2]
+        elif job[-3:] == 'OOH':
+            indices = [-1, -2, -3]
+        elif job[-2:] == 'O2':
+            indices = [-1, -2]
+        else:
+            indices = []
+            # print('%!!!')
+            return job, 0
+        vib = Vibrations(atoms, name = os.path.join(label, job), indices = indices)
+        vib.run()
+        vib_energies = np.real(vib.get_energies())
+        zpe = 0.
+        for energy in vib_energies:
+            zpe += 0.5 * energy
+        self.zpes[job] = zpe
+        return job, zpe
+    def pdos(self, job, atoms):
+        """
+        calculate the pdos
+        """
+        self.log('-'*60)
+        self.log('Run pdos calculation: {0}'.format(job))
+        calc  =self.calcs[job]
+        fe = calc.get_fermi_level()
+        atoms = calc.results['atoms']
+        calculator = deepcopy(self.calculator)
+        kpts = [calculator['kpts'][0]*2, calculator['kpts'][1]*2, calculator['kpts'][2]]
+        if 'parallel' not in calculator: calculator['parallel'] = '-nk 1'
+        calc.nscf(queue = calculator['queue'], parallel = calculator['parallel'], occupations = 'tetrahedra', kpts = kpts)
+        calc.nscf_calculate()
+        calc.read_results()
+        calc.post(queue = calculator['queue'], package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+        calc.post(queue = calculator['queue'], package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
     
 class OER_bulk(OER_base):
-    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indexs = [], min_slab_size = 8.0, min_vacuum_size = 15.0,  nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, pourbaix_input = {}, surface_input = {}, calculator = None, molecule_energies = None, view = False):
+    def __init__(self, atoms, label = '.', prefix = None, surfaces = {}, indexs = [], min_slab_size = 6.0, min_vacuum_size = 15.0,  nlayer = 4, fix = [0, 3], tol = 1.0, termination = None, pourbaix_input = {}, surface_input = {}, calculator = None, molecule_energies = None, view = False, debug = False):
         '''
         Generate surface slab model from bulk structure
 
@@ -234,7 +298,7 @@ class OER_bulk(OER_base):
         return terminations
     
 class OER_pourbaix(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], surface_input = {}, molecule_energies = None, view = False):
+    def __init__(self, atoms, label = '', prefix = None, sites_dict = None, calculator = None, coverages = [0, 1], adsorbates = ['O', 'OH'], surface_input = {}, molecule_energies = None, view = False, debug = False):
         '''
         Calculate surface Pourbaix diagram.
         coverages: list
@@ -332,7 +396,7 @@ class OER_pourbaix(OER_base):
             for i in range(len(combination)):
                 if not combination[i]: continue
                 pos = self.sites[i]
-                mol = mols[combination[i]].copy()
+                mol = self.mols[combination[i]].copy()
                 mol.translate(pos- mol[0].position + [0, 0, 1.5])
                 ads = ads + mol
             natoms = self.atoms.copy()
@@ -417,7 +481,7 @@ class OER_surface(OER_base):
     
 
 class OER_site(OER_base):
-    def __init__(self, atoms, label = '', prefix = None, site_type = 'ontop', site = None, height = 2.0, calculator = None, molecule_energies = None, view = False):
+    def __init__(self, atoms, label = '', prefix = None, site_type = 'ontop', site = None, height = 2.0, calculator = None, molecule_energies = None, mols = None, view = False, debug = False):
         '''
         Workflow:
         0. Read the surface slab
@@ -450,7 +514,7 @@ class OER_site(OER_base):
 
         '''
         self.name = 'site'
-        OER_base.__init__(self, atoms, name = self.name, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies, view = view)
+        OER_base.__init__(self, atoms, label = label, prefix = prefix, calculator = calculator, molecule_energies = molecule_energies, view = view, debug = debug)
         self.images = {}
         self.site_type = site_type
         self.site = site
@@ -467,7 +531,8 @@ class OER_site(OER_base):
                                    atoms[site[2]].position)/2.0+ np.array([0, 0, height])
         elif site_type.upper() == 'POSITION':
             self.site_position = site + np.array([0, 0, height])
-
+        if mols:
+            self.mols = mols
         self.children = {}
         self.calcs = {}
         self.zpes = {}
@@ -485,7 +550,7 @@ class OER_site(OER_base):
         self.pool_atoms(self.children, self.geo_relax_espresso)
         self.log('-'*60)
         self.log('Image energies (eV):')
-        self.log('{0: <20}  Energy: {1:1.3f}'.format('Clean Surface', self.atoms.calc.results['energy']))
+        # self.log('{0: <20}  Energy: {1:1.3f}'.format('Clean Surface', self.atoms.calc.results['energy']))
         for job, result in self.results.items():
             self.log('    {0:<20}  {1:1.3f}'.format(job, result['energy']))
             self.children[job] = result['atoms']
@@ -519,9 +584,11 @@ class OER_site(OER_base):
         self.log('OER adsorbate:')
         atoms = self.atoms
         label = self.label.replace('/', '_')
-        print(self.site_position)
+        # print(self.site_position)
+        job = '%s_%s'%(label, 'Clean')
+        self.children[job] = self.atoms.copy()
         if self.site_symbol not in ['H', 'O'] :
-            for prefix, mol in mols.items():
+            for prefix, mol in self.mols.items():
                 # print(prefix, mol)
                 job = '%s_%s'%(label, prefix)
                 self.log('    %s'%job)
@@ -533,11 +600,15 @@ class OER_site(OER_base):
         # O
         ind = self.site
         if self.site_symbol == 'O':
+            job = '%s_%s'%(label, 'O')
+            self.log('    %s'%job)
+            self.children[job] = self.atoms.copy()
             atoms = self.atoms.copy()
             del atoms[[ind]]
-            self.log('    O2')
-            self.children['%s_%s'%(label, 'O2')] = atoms.copy()
-            for prefix, mol in mols.items():
+            job = '%s_%s'%(label, 'Clean')
+            self.log('    %s'%job)
+            self.children[job] = atoms.copy()
+            for prefix, mol in self.mols.items():
                 # print(prefix, mol)
                 if prefix == 'O': continue
                 job = '%s_%s'%(label, prefix)
@@ -558,7 +629,7 @@ class OER_site(OER_base):
             del natoms[[ind]]
             self.children[job] = natoms
             # O2
-            job = '%s_%s'%(label, 'O2')
+            job = '%s_%s'%(label, 'Clean')
             self.log('    %s'%job)
             natoms = atoms.copy()
             del natoms[[ind, indo]]
@@ -566,7 +637,7 @@ class OER_site(OER_base):
             # OOH
             job = '%s_%s'%(label, 'OOH')
             self.log('    %s'%job)
-            ads = mols[job].copy()
+            ads = self.mols[job].copy()
             natoms = atoms.copy()
             ads.translate(self.atoms[indo].position - ads[0].position)
             natoms = natoms + ads
@@ -585,33 +656,33 @@ class OER_site(OER_base):
             G_OOH = 2*G_h2o - 3*G_h2/2.0
         if not E_H:
             E_H = G_h2/2.0
-        E0 = self.atoms.calc.results['energy']
         # fig, ax = plt.subplots()
         label = self.label.replace('/', '_')
-        if self.atoms[self.site].symbol not in ['H', 'O']:
-            dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OH')]
-            dG_O = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
-            dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OOH + self.zpes['%s_%s'%(label, 'OOH')]
-            dG_O2 = 4.92
-            self.steps = ['OH', 'O', 'OOH', 'O2']
-            self.free_energies = [dG_OH, dG_O, dG_OOH, dG_O2]
+        E0 = self.results['%s_%s'%(label, 'Clean')]['energy']
+        # if self.atoms[self.site].symbol not in []:
+        dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OH')]
+        dG_O = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
+        dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OOH + self.zpes['%s_%s'%(label, 'OOH')]
+        dG_O2 = 4.92
+        self.steps = ['OH', 'O', 'OOH', 'O2']
+        self.free_energies = [dG_OH, dG_O, dG_OOH, dG_O2]
             # self.plot_free_energy([0, G_OH, G_O, G_OOH, G_O2], ['*', 'OH', 'O', 'OOH', 'O2'], ax = ax)
-        if self.atoms[self.site].symbol == 'O':
-            dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OOH')]
-            dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_O + self.zpes['%s_%s'%(label, 'O2')]
-            dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - E_H + self.zpes['%s_%s'%(label, 'OH')]
-            dG_O = 4.92
-            self.steps = ['OOH', 'O2', 'OH', 'O']
-            self.free_energies = [dG_OOH, dG_O2, dG_OH, dG_O]
-            # self.plot_free_energy([0, G_OOH, G_O2, G_OH, G_O], ['O', 'OOH', 'O2', 'OH', 'O'], ax = ax)
-        if self.atoms[self.site].symbol == 'H':
-            dG_O = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 + E_H + self.zpes['%s_%s'%(label, 'OH')]
-            dG_OOH = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
-            dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_OH + self.zpes['%s_%s'%(label, 'O2')]
-            dG_OH = 4.92
-            self.steps = ['O', 'OOH', '2', 'OH']
-            self.free_energies = [dG_O, dG_OOH, dG_O2, dG_OH]
-            # self.plot_free_energy([0, G_O, G_OOH, G_O2, G_OH], ['OH', 'O', 'OOH', 'O2', 'OH'], ax = ax)
+        # if self.atoms[self.site].symbol == 'O':
+        #     dG_OOH = self.results['%s_%s'%(label, 'OOH')]['energy'] - E0 - G_OH + self.zpes['%s_%s'%(label, 'OOH')]
+        #     dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_O + self.zpes['%s_%s'%(label, 'O2')]
+        #     dG_OH = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 - E_H + self.zpes['%s_%s'%(label, 'OH')]
+        #     dG_O = 4.92
+        #     self.steps = ['OOH', 'O2', 'OH', 'O']
+        #     self.free_energies = [dG_OOH, dG_O2, dG_OH, dG_O]
+        #     # self.plot_free_energy([0, G_OOH, G_O2, G_OH, G_O], ['O', 'OOH', 'O2', 'OH', 'O'], ax = ax)
+        # if self.atoms[self.site].symbol == 'H':
+        #     dG_O = self.results['%s_%s'%(label, 'OH')]['energy'] - E0 + E_H + self.zpes['%s_%s'%(label, 'OH')]
+        #     dG_OOH = self.results['%s_%s'%(label, 'O')]['energy'] - E0 - G_O + self.zpes['%s_%s'%(label, 'O')]
+        #     dG_O2 = self.results['%s_%s'%(label, 'O2')]['energy'] - E0 + G_OH + self.zpes['%s_%s'%(label, 'O2')]
+        #     dG_OH = 4.92
+        #     self.steps = ['O', 'OOH', '2', 'OH']
+        #     self.free_energies = [dG_O, dG_OOH, dG_O2, dG_OH]
+        #     # self.plot_free_energy([0, G_O, G_OOH, G_O2, G_OH], ['OH', 'O', 'OOH', 'O2', 'OH'], ax = ax)
         # fig.savefig(os.path.join(self.label, '%s-free-energy.png'%self.prefix))
         self.over_potential = max([self.free_energies[1] - self.free_energies[0], 
                                    self.free_energies[2] - self.free_energies[1],

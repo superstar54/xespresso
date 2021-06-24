@@ -14,34 +14,37 @@ atoms = Atoms('H3', positions = [[0, 0, 0], [0.8, 0, 0.0], [3.0, 0, 0]],
                     pbc = [True, True, True])
 constraints = FixAtoms(indices = [0, 2])
 atoms.set_constraint(constraints)
+input_ntyp = {'starting_magnetization': {'H': 0.5}}
+
 # view(atoms)
 input_data = {
 'calculation': 'relax',
-'verbosity': 'high', 
 'ecutwfc': 20.0,
 'ecutrho': 100.0,
 'occupations': 'smearing',
 'smearing': 'gaussian',
 'degauss': 0.03,
 'nspin': 2,
-'starting_magnetization': 0.5E0,
+'input_ntyp': input_ntyp,
 #
 'mixing_beta': 0.3,
 'conv_thr': 1.0e-8,
 }
-queue = {'nodes': 1, 'ntasks-per-node': 4, 'account': 'dcb', 
-         'partition': 'all', 'time': '0:59:00'}
+# queue = {'nodes': 1, 'ntasks-per-node': 4, 'account': 'dcb', 'partition': 'all', 'time': '0:59:00'}
+queue = None
 pseudopotentials = {
 'H': 'H.pbe-rrkjus_psl.1.0.0.UPF',
 }
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 #  queue = queue,
                  label  = 'relax/initial',
-                 input_data = input_data, kpts=(1, 1, 1))
+                 input_data = input_data,
+                 kpts=(1, 1, 1),
+                 debug = True,
+                 )
 atoms.calc = calc
-atoms.get_potential_energy()
-calc.read_results()
-print('Initial energy: %s'%calc.results['energy'])
+e = atoms.get_potential_energy()
+print('Initial energy: ', e)
 
 
 #=============================================================
@@ -83,7 +86,7 @@ calc = NEBEspresso(pseudopotentials = pseudopotentials,
                  )
 #
 paths, energies = calc.get_neb_path_energy()
-print(energies)
+print('energies: ', energies)
 calc.read_results()
 calc.plot_fit()
 plt.savefig('images/neb.png')

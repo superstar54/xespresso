@@ -55,12 +55,21 @@ queue = {'nodes': 4,
 calc = Espresso(queue = queue)
 ```
 
+
+
+
 #### Automatic check a new calculation required or not
 
-Before the calculation, first check the working directory. If the same geometry and parameters are used, try to check the results are available or not.
+Before the calculation, first check the working directory. If the same geometry and parameters are used, try to check the results are available or not. Automatic check input parameters with Quantum Espresso document.
 
 ``` python
 calc = Espresso(label = 'scf/fe')
+```
+
+#### Show debug information.
+
+``` python
+calc = Espresso(debug = True)
 ```
 
 #### Add new species
@@ -123,8 +132,8 @@ A example of calculating and plotting the pdos from the nscf calculation.
 
 ``` python
 calc.read_results()
-calc.post(queue = queue, package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.1)
-calc.post(queue = queue, package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.1)
+calc.post(queue = queue, package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+calc.post(queue = queue, package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
 ```
 <!-- <img src="examples/figs/al-pdos.png" width="500"/> -->
 

@@ -20,17 +20,15 @@ class NEBEspresso(Espresso):
     implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time', 'neb']
     command = 'neb.x  PARALLEL  -in  PREFIX.nebi  >  PREFIX.nebo'
 
-    def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', prefix = None, images=[Atoms('')], package = 'neb', parallel = '',
-                 queue = None,
+    def __init__(self, label='xespresso', prefix = None, images=[Atoms('')], package = 'neb', parallel = '',
+                 queue = None, debug = False,
                  **kwargs):
         """
 
         """
         atoms = images[0]
-        Espresso.__init__(self, restart, ignore_bad_restart_file,
-                 label = label, prefix = prefix, atoms = atoms, package = package, parallel = parallel,
-                 queue = queue, **kwargs)
+        Espresso.__init__(self, label = label, prefix = prefix, atoms = atoms, package = package, parallel = parallel,
+                 queue = queue, debug = debug, **kwargs)
         self.images = images
     def write_input(self, images, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, self.images, properties, system_changes)

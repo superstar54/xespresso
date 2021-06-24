@@ -9,20 +9,22 @@ from xespresso import Espresso
 from xespresso.tools import mypool, fix_layers, dipole_correction
 
 class Base():
-    def __init__(self, atoms, label = '.', prefix = None, calculator = None, view = False):
+    def __init__(self, atoms, label = '.', prefix = None, calculator = None, view = False, debug = False):
         self.set_label(label, prefix)
         self.atoms = atoms
         self.calculator = calculator
         self.view = view
+        self.debug = debug
         self.images = {}
         self.children = {}
         self.results = {}
         # self('%s'%self.__class__.__name__)
     def set_logger(self, logger):
         self.log = logger()
+        # self.log.fd = os.path.join(self.label, '%s.txt'%(self.prefix))
         self.log.fd = os.path.join(self.label, '%s.%so'%(self.prefix, self.name))
         self.log('-'*60)
-        self.log('Class: OER_%s \n'%self.name)
+        self.log('Class:  %s\n'%self.__class__.__name__)
         self.log('directory: %s'%self.directory)
         self.log('prefix: %s'%self.prefix)
         self.log('-'*60)
@@ -90,7 +92,7 @@ class Base():
                 **calculator,
                 )
         atoms.calc = calc
-        calc.run(atoms = atoms, restart = 1)
+        calc.run(atoms = atoms)
         calc.read_results()
         self.results[job] = deepcopy(calc.results)
         return job, self.results[job]['energy']
@@ -121,7 +123,7 @@ class Base():
                 **calculator,
                 )
         atoms.calc = calc
-        calc.run(atoms = atoms, restart = 1)
+        calc.run(atoms = atoms)
         calc.read_results()
         energy = calc.results['energy']
         self.results[job] = deepcopy(calc.results)
@@ -142,51 +144,14 @@ class Base():
         calc.nscf(queue = calculator['queue'], parallel = calculator['parallel'], occupations = 'tetrahedra', kpts = kpts)
         calc.nscf_calculate()
         calc.read_results()
-        calc.post(queue = calculator['queue'], package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.1)
-        calc.post(queue = calculator['queue'], package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.1)
-    def vib_zpe(self, job, atoms):
-        from ase.vibrations import Vibrations
-        self.log('-'*60)
-        self.log('Run ZEP calculation: {0}'.format(job))
-        label = os.path.join(self.label, job)
-        label = os.path.join(label, 'vib')
-        # copy file
-        calculator = deepcopy(self.calculator)
-        dip = dipole_correction(atoms, edir = 3)
-        calculator.update(dip)
-        calculator.update({'calculation':'scf',
-                           'tstress': True,
-                           'tprnfor': True,
-                           'outdir': '../',
-                           'prefix': '%s'%job,
-                           'startingpot':'file',
-                           'startingwfc':'file',
-                           'etot_conv_thr':1e-6,
-                            })
-        # better to restart from previous geo_relax calculation
-        calc = Espresso(label = label,
-                        **calculator,
-                        )
-        atoms.calc = calc
-        if job[-1] == 'O':
-            indices = [-1]
-        elif job[-2:] == 'OH':
-            indices = [-1, -2]
-        elif job[-3:] == 'OOH':
-            indices = [-1, -2, -3]
-        else:
-            indices = []
-            print('Wront, not oer site!!!')
-        vib = Vibrations(atoms, name = os.path.join(label, job), indices = indices)
-        vib.run()
-        vib_energies = np.real(vib.get_energies())
-        zpe = 0.
-        for energy in vib_energies:
-            zpe += 0.5 * energy
-        self.zpes[job] = zpe
-        return job, zpe
+        calc.post(queue = calculator['queue'], package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+        calc.post(queue = calculator['queue'], package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
     def pool_atoms(self, jobs, func):
         from random import random
+        if self.debug:
+            for job, atoms in jobs.items():
+                func(job, atoms)
+            return 0
         max_workers = len(jobs)
         with ThreadPoolExecutor(max_workers = max_workers) as executor:
             futures = []

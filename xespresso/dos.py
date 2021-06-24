@@ -23,6 +23,11 @@ class DOS:
 
         calc: quantum espresso calculator object
         label: the directory and prefix
+
+        dos_energies
+        print(pdos_info) to see the detail
+        pdos_kinds[species][channel][ncomponents]
+
         """
         if not calc and not label:
             raise ValueError('Please give one of them: calc or label')
@@ -40,7 +45,7 @@ class DOS:
         self.nspins = calc.get_number_of_spins()
         if self.nspins == 0:  self.nspins = 1
     def read_dos(self):
-        dos = np.loadtxt(self.directory+'/%s.dos' % self.prefix)
+        dos = np.loadtxt(self.directory + '/dos/%s.dos' % self.prefix)
         if self.nspins == 2:
             self.dos = [dos[:,1], dos[:, 2]]
         else:
@@ -69,7 +74,7 @@ class DOS:
         # 
         kinds = []
         pdos_info = {}
-        with open(self.directory+'/%s.projwfco' % self.prefix, 'r') as f:
+        with open(self.directory + '/projwfc/%s.projwfco' % self.prefix, 'r') as f:
             lines = f.readlines()
             for line in lines:
                 if 'state #' in line:
@@ -96,7 +101,7 @@ class DOS:
         '''
         self.read_pdos_info()
         # read in total density of states
-        dos = np.loadtxt(self.directory+'/%s.pdos_tot' % self.prefix)
+        dos = np.loadtxt(self.directory + '/projwfc/%s.pdos_tot' % self.prefix)
         if self.nspins == 2:
             self.pdos_tot = [dos[:,1], dos[:, 2]]
         else:
@@ -115,7 +120,7 @@ class DOS:
             for iatom in info['iatom']:
                 pdos_atom = {}
                 for istate, l in info['istate'].items():
-                    filename = self.directory + '/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kind, istate, orbitals[l])
+                    filename = self.directory + '/projwfc/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kind, istate, orbitals[l])
                     channel = '{0}{1}'.format(istate, orbitals[l])
                     pdosinp = np.genfromtxt(filename)
                     ncomponents = (2*l+1) * self.nspins + 1
@@ -153,7 +158,7 @@ class DOS:
         '''
         #
         self.read_pdos_info()
-        proj_files = [self.directory + '/%s.projwfc_up'%self.prefix, self.directory + '/%s.projwfc_down'%self.prefix]
+        proj_files = [self.directory + '/projwfc/%s.projwfc_up'%self.prefix, self.directory + '/projwfc/%s.projwfc_down'%self.prefix]
         projs = []
         projs_kinds = []
         channels = []
