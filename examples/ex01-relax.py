@@ -10,6 +10,7 @@ calc = Espresso(label = 'relax/h2',
                 calculation = 'relax',
                 ecutwfc = 20,
                 kpts = (1, 1, 1),
+                debug = True,
                 )
 atoms.calc = calc
 e = atoms.get_potential_energy()

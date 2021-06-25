@@ -12,23 +12,27 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.03,
-                kpts=(6, 6, 6))
+                kpts=(6, 6, 6),
+                debug = True,
+                )
 atoms.calc = calc
 e = atoms.get_potential_energy()
 fermi = calc.get_fermi_level()
 #===============================================================
 # # nscf calculation
-# calc.nscf(kpts=(8, 8, 8))
-# calc.nscf_calculate()
+calc.nscf(kpts=(8, 8, 8))
+calc.nscf_calculate()
 # # post calculation
-# calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
-# calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.1)
+calc.post(package='dos', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.01)
+calc.post(package='projwfc', Emin = fermi - 20, Emax = fermi + 10, DeltaE = 0.01)
 # # # DOS analysis
-# dos = DOS(calc)
-# dos.read_dos()
-# dos.plot_dos()
-# plt.show()
-#
+dos = DOS(label = 'scf/fe', prefix='fe')
+dos.read_dos()
+dos.plot_dos()
+plt.savefig('images/fe-dos.png')
+dos.read_pdos()
+dos.plot_pdos(legend = True)
+plt.savefig('images/fe-pdos.png')
 
 '''
 Energy: -3368.435

@@ -10,11 +10,13 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 ecutwfc = 40,
                 occupations = 'smearing',
                 degauss = 0.03,
-                kpts=(1, 1, 1))
+                kpts=(1, 1, 1),
+                debug = True,
+                )
 h2.calc = calc
 e = h2.get_potential_energy()
 print('Energy: {0:1.3f}'.format(e))
 
 '''
-Energy: -3368.488
+Energy: -31.730
 '''

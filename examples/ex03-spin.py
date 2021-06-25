@@ -18,7 +18,9 @@ calc = Espresso(pseudopotentials = pseudopotentials,
                 degauss = 0.02,
                 nspin = 2,
                 input_data = {'input_ntyp': input_ntyp},
-                kpts=(4, 4, 4))
+                kpts = (4, 4, 4), 
+                debug = True,
+                )
 atoms.calc = calc
 e = atoms.get_potential_energy()
 print('Energy  {0:1.3f}'.format(e))

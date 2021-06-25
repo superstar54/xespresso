@@ -51,6 +51,7 @@ class DOS:
         else:
             self.dos = [dos[:,1]]
         self.dos_energies = dos[:,0] - self.efermi
+        # self.dos_energies = self.dos_energies.reshape((self.dos_energies.shape[0], 1))
     def read_pdos_info(self, ):
         '''
         read pdos information from output of projwfc
@@ -203,6 +204,7 @@ class DOS:
                 ymesh = dos[i][xindex]
             else:
                 xmesh, ymesh = self.smearing(energies[xindex], dos[i][xindex], sigma=smearing[0], de = smearing[0])
+            ymesh = ymesh.reshape(-1, )
             if self.nspins == 2:
                 newlabel = '%s-%s' % (label, lspins[i])
             else:
@@ -215,7 +217,7 @@ class DOS:
                 if color is not None:
                     ax.fill_between(xmesh, (-1)**i*ymesh, 0, alpha = 0.2, color = color)
                 else:
-                    ax.fill_between(xmesh, (-1)**i*ymesh, 0, alpha = 0.2)
+                    ax.fill_between(xmesh, (-1)**i*ymesh, 0, alpha = 0.2,)
         return ax
     def plot_dos(self, energies = None, dos = None, 
         Emin = -5, Emax = 5, color = None,

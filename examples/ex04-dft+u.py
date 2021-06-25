@@ -9,8 +9,8 @@ atoms = bulk('Fe', cubic = True)
 atoms.info['species'] = atoms.get_chemical_symbols()
 atoms.info['species'][1] = 'Fe1'
 input_ntyp = {
-'starting_magnetization': {'Fe': 0.5, 'Fe1': -0.5, },
-'Hubbard_U': {'Fe': 4.3, 'Fe1': 4.3},
+    'starting_magnetization': {'Fe': 0.5, 'Fe1': -0.5, },
+    'Hubbard_U': {'Fe': 4.3, 'Fe1': 4.3},
 }
 
 input_data = {
@@ -31,7 +31,9 @@ pseudopotentials = {
 calc = Espresso(pseudopotentials = pseudopotentials, 
                 label  = 'scf/fe+u',
                 input_data = input_data, 
-                kpts=(4, 4, 4))
+                kpts=(4, 4, 4),
+                debug = True,
+)
 atoms.calc = calc
 e = atoms.get_potential_energy()
 print('Energy {0:1.3f}'.format(e))
