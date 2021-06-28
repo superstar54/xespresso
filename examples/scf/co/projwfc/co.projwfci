@@ -1,7 +1,0 @@
-&PROJWFC
-  Emin       =  -35.1463 
-  Emax       =  24.8537 
-  DeltaE     =  0.01 
-  prefix     =  "co" 
-  outdir     =  "../" 
-/ 
