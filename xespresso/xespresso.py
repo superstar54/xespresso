@@ -10,9 +10,6 @@ Run PACKAGE.x jobs.
 
 from ase import constraints, io
 from ase.calculators.calculator import FileIOCalculator, CalculationFailed, equal, compare_atoms
-from ase.io.formats import F
-from numpy.core.fromnumeric import sort
-import pseudo
 from xespresso.xio import write_espresso_in, read_espresso_input, read_espresso_asei, write_espresso_asei, get_atomic_species, get_atomic_constraints
 import os
 import shutil
