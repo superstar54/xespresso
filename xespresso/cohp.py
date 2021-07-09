@@ -66,7 +66,7 @@ class COHP:
         self.coop_energies = datas[:,0]
     def read_icohp(self, ):
         from ase.calculators.vasp import VaspDos
-        datas = np.genfromtxt(os.path.join(self.directory, 'ICOOPLIST.lobster'), skip_header = 1 + len(self.indexs))
+        datas = np.genfromtxt(os.path.join(self.directory, 'ICOHPLIST.lobster'), skip_header = 1 + len(self.indexs))
         self.icohp = datas
         # self.icohp_energies = datas[:, 7]
         #
