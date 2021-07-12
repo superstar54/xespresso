@@ -30,7 +30,7 @@ pip install --upgrade --user xespresso
 ### Installation from source
 You can get the source using git:
 ``` sh
-git clone https://github.com/superstar54/xespresso.git
+git clone --depth 1 https://github.com/superstar54/xespresso.git
 ```
 
 Add xespresso to your PYTHONPATH. On windows, you can edit the system environment variables.
