@@ -11,6 +11,7 @@ Run PACKAGE.x jobs.
 from ase import constraints, io
 from ase.calculators.calculator import FileIOCalculator, CalculationFailed, equal, compare_atoms
 from xespresso.xio import write_espresso_in, read_espresso_input, read_espresso_asei, write_espresso_asei, get_atomic_species, get_atomic_constraints
+from ase.io.espresso import read_espresso_in
 import os
 import shutil
 import numpy as np
@@ -262,6 +263,10 @@ class Espresso(FileIOCalculator):
             self.logger.debug('Parameter: %s changed, results are affected'%self.changed_parameters)
             return True
         self.logger.debug('Same geometry and parameters, use previous results.')
+        converged, meg = self.read_convergence()
+        if converged > 0:
+            self.logger.debug('Not converged: %s'%meg)
+            return True
         return False
     def compare_parameters(self, para1, para2, ignore = []):
         """
@@ -341,26 +346,32 @@ class Espresso(FileIOCalculator):
         get atomic species
         '''
         pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
+        pwi = os.path.join(self.directory, '%s.pwi'%self.prefix)
         convergence, meg = self.read_convergence()
-        if convergence == 0:
-            try:
-                output = io.read(pwo)
-                atomic_species = get_atomic_species(pwo)
-                constraints = get_atomic_constraints(pwo, len(output))
-                output.set_constraint(None)
-                output.set_constraint(constraints)
-                if atomic_species: output.info['species'] = atomic_species
-                self.calc = output.calc
-                self.results = output.calc.results
-                self.results['atoms'] = output
-                self.efermi = self.get_fermi_level()
-                # self.nspins = self.get_number_of_spins()
-                self.logger.debug('Read result successfully!')
-            except Exception as e:
-                self.logger.debug('Read output: %s, failed! %s'%(pwo, e))
-        else:
+        if convergence != 0:
             self.logger.debug('Not converged. %s'%(meg))
-            # self.logger.debug('Read result failed!')
+        try:
+            atoms = read_espresso_in(pwi)
+            self.results['atoms'] = atoms
+        except Exception as e:
+            self.logger.debug('Read input: %s, failed! %s'%(pwi, e))
+        try:
+            output = io.read(pwo)
+            atomic_species = get_atomic_species(pwo)
+            constraints = get_atomic_constraints(pwo, len(output))
+            output.set_constraint(None)
+            output.set_constraint(constraints)
+            if atomic_species: output.info['species'] = atomic_species
+            self.calc = output.calc
+            self.results = output.calc.results
+            self.results['atoms'] = output
+            self.efermi = self.get_fermi_level()
+            # self.nspins = self.get_number_of_spins()
+            self.logger.debug('Read result successfully!')
+        except Exception as e:
+            self.logger.debug('Read output: %s, failed! %s'%(pwo, e))
+        self.results['convergence'] = convergence
+        # self.logger.debug('Read result failed!')
         # pwos = [file for file in os.listdir(self.directory) if pwo in file]
         # output = None
         # for pwo in pwos:
@@ -547,7 +558,7 @@ class Espresso(FileIOCalculator):
                     mixing_beta = float(self.parameters['input_data']['ELECTRONS']['mixing_beta'])
                 else:
                     mixing_beta = 0.7
-                if electron_maxstep < 200:
+                if electron_maxstep < 100:
                     self.parameters['input_data']['ELECTRONS']['electron_maxstep'] = electron_maxstep + 50
                     self.logger.debug('electron_maxstep change from %s to %s'%(electron_maxstep, electron_maxstep + 50))
                 self.parameters['input_data']['ELECTRONS']['mixing_beta'] = mixing_beta/2.0
@@ -559,12 +570,12 @@ class Espresso(FileIOCalculator):
             except Exception as e:
                 self.logger.debug('Not converge: %s'%e)
                 converged, meg = self.read_convergence()
-                # meg = e
+                meg = str(e)
                 restart = 2
-                if converged == 0:
-                    converged = 4
-            self.logger.debug('%s, %s'%(converged, meg[0:-1]))
-            if meg == meg0:
+                # if converged == 0:
+                converged = 4
+            self.logger.debug('%s, %s'%(converged, meg))
+            if meg == meg0 and converged != 2:
                 self.logger.debug('Exit! Maybe deadblock! Same error message! %s'%meg)
                 sys.exit()
             meg0 = meg

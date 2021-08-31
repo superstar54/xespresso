@@ -157,23 +157,18 @@ def summary(updates = [], prefix = 'datas'):
             output = is_espresso(i)
             if output:
                 os.chdir(i)
-                print('dire:', i)
+                print('='*30)
+                print('Reading dire:', i)
                 calc.directory = cwd + '/' + i
                 calc.prefix = output[0:-4]
                 try:
                     calc.results = {}
                     calc.read_results()
-                    # gap, p1, p2 = bandgap(calc)
-                    # calc.results['gap'] = gap
-                    # t = calc.get_time()
-                    # calc.results['time'] = t
                     datas[i] = calc.results
                     atoms = calc.results['atoms']
                     atoms.write(os.path.join(calc.directory, '%s.cif'%calc.prefix))
-                    # results = ana(i, calc)
-                    # df.loc[len(df)] = results
                 except Exception as e:
-                    print('='*30, '\n', i, e)
+                    print('error: %s \n'%e)
             os.chdir(cwd)
     with open(file, 'wb') as f:
         pickle.dump([datas, df], f)
