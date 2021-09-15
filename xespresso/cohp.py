@@ -7,7 +7,13 @@ import subprocess
 
 
 class COHP:
-    def __init__(self, directory='.', prefix='cohp', indexs=[[1, 2]], queue=False, command='lobster', **kwargs):
+    def __init__(self,
+                 directory='.',
+                 prefix='cohp',
+                 indexs=[[1, 2]],
+                 queue=False,
+                 command='lobster',
+                 **kwargs):
         """
         Energetic window [COHPstartEnergy, COHPendEnergy]
         """
@@ -37,8 +43,7 @@ class COHP:
         if errorcode:
             path = os.path.abspath(self.directory)
             msg = ('Command "{}" failed in '
-                   '{} with error code {}'.format(command,
-                                                  path, errorcode))
+                   '{} with error code {}'.format(command, path, errorcode))
             print(msg)
             exit()
         print('Done: %s' % command)
@@ -62,25 +67,27 @@ class COHP:
         self.dos = dos._total_dos[1]
         self.dos_energies = dos._total_dos[0]
         #
-        datas = np.genfromtxt(os.path.join(
-            self.directory, 'COHPCAR.lobster'), skip_header=3 + len(self.indexs))
+        datas = np.genfromtxt(os.path.join(self.directory, 'COHPCAR.lobster'),
+                              skip_header=3 + len(self.indexs))
         self.cohp = datas[:, 1]
         self.cohp_energies = datas[:, 0]
         #
-        datas = np.genfromtxt(os.path.join(
-            self.directory, 'COOPCAR.lobster'), skip_header=3 + len(self.indexs))
+        datas = np.genfromtxt(os.path.join(self.directory, 'COOPCAR.lobster'),
+                              skip_header=3 + len(self.indexs))
         self.coop = datas[:, 1]
         self.coop_energies = datas[:, 0]
 
     def read_icohp(self, ):
         from ase.calculators.vasp import VaspDos
-        datas = np.genfromtxt(os.path.join(
-            self.directory, 'ICOHPLIST.lobster'), skip_header=1 + len(self.indexs))
+        datas = np.genfromtxt(os.path.join(self.directory,
+                                           'ICOHPLIST.lobster'),
+                              skip_header=1 + len(self.indexs))
         self.icohp = datas
         # self.icohp_energies = datas[:, 7]
         #
-        datas = np.genfromtxt(os.path.join(
-            self.directory, 'ICOOPLIST.lobster'), skip_header=1 + len(self.indexs))
+        datas = np.genfromtxt(os.path.join(self.directory,
+                                           'ICOOPLIST.lobster'),
+                              skip_header=1 + len(self.indexs))
         self.icoop = datas
         # self.icoop_energies = datas[:, 7]
 
