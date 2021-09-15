@@ -24,8 +24,14 @@ class COHP:
         self.command = command
 
     def run(self, cpu=1):
-        '''
-        '''
+        """Run COHP analysis using lobster
+
+        Args:
+            cpu (int, optional): CPU threads used. Defaults to 1.
+
+        Raises:
+            EnvironmentError: [description]
+        """
         shutil.copy(os.path.join(self.directory, '%s.pwi' % self.prefix),
                     os.path.join(self.directory, '%s.scf.in' % self.prefix))
         self.write_input()
@@ -50,6 +56,8 @@ class COHP:
         #
 
     def write_input(self, ):
+        """make input file for lobster
+        """
         filename = os.path.join(self.directory, 'lobsterin')
         with open(filename, 'w') as f:
             for key, value in self.parameters.items():
@@ -62,6 +70,8 @@ class COHP:
                 f.write('cohpbetween atom %s atom %s \n' % (ind[0], ind[1]))
 
     def read_cohp(self, ):
+        """read COHP anlysis results
+        """
         from ase.calculators.vasp import VaspDos
         dos = VaspDos(os.path.join(self.directory, 'DOSCAR.lobster'))
         self.dos = dos._total_dos[1]
@@ -78,6 +88,8 @@ class COHP:
         self.coop_energies = datas[:, 0]
 
     def read_icohp(self, ):
+        """read icohp data for bond strength evaluation
+        """
         from ase.calculators.vasp import VaspDos
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOHPLIST.lobster'),
@@ -92,8 +104,15 @@ class COHP:
         # self.icoop_energies = datas[:, 7]
 
     def plot_cohp(self, ax=None, output=None):
-        '''
-        '''
+        """create a DOS and COHP plot
+
+        Args:
+            ax (COHP object, optional):  Defaults to None.
+            output (strng, optional): filename if want to save plot. Defaults to None.
+
+        Returns:
+            plot: a DOS with COHP plot
+        """
         import matplotlib.pyplot as plt
         if ax is None:
             fig, ax = plt.subplots(1, 2)
@@ -108,8 +127,15 @@ class COHP:
         return ax
 
     def plot_coop(self, ax=None, output=None):
-        '''
-        '''
+        """create a DOS with COOP plot
+
+        Args:
+            ax (COHP object, optional): Defaults to None.
+            output (string, optional): filename if want to save plot. Defaults to None.
+
+        Returns:
+            plot: a DOS with COOP plot
+        """
         import matplotlib.pyplot as plt
         if ax is None:
             fig, ax = plt.subplots(1, 2)
