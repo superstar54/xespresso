@@ -124,10 +124,10 @@ class Espresso(FileIOCalculator):
         """
         """
         # pseudopotentials
-        if 'species' not in self.atoms.info:
+        if 'species' not in self.atoms.arrays:
             all_species = set(self.atoms.get_chemical_symbols())
         else:
-            all_species = set(self.atoms.info['species'])
+            all_species = set(self.atoms.arrays['species'])
         new_pseudopotentials = {}
         for species in all_species:
             assert species in pseudopotentials, '\n  Species: %s, does not have a pseudopotentials!'%(species)
@@ -361,7 +361,7 @@ class Espresso(FileIOCalculator):
             constraints = get_atomic_constraints(pwo, len(output))
             output.set_constraint(None)
             output.set_constraint(constraints)
-            if atomic_species: output.info['species'] = atomic_species
+            if atomic_species: output.arrays['species'] = atomic_species
             self.calc = output.calc
             self.results = output.calc.results
             self.results['atoms'] = output

@@ -101,7 +101,7 @@ def get_atomic_structure(xml):
     positions = np.array(positions)
     # positions = positions**units['Bohr']
     atoms = Atoms(symbols = symbols, positions = positions)
-    atoms.info['species'] = all_species
+    atoms.arrays['species'] = all_species
     # cell
     cell = []
     for item in xml.find('./cell'):

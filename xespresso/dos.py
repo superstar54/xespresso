@@ -115,7 +115,7 @@ class DOS:
         for kind, info in self.pdos_info.items():
             pdos_kind = {}
             for istate, l in info['istate'].items():
-                ncomponents = (2*l+1) * self.nspins + 1
+                ncomponents = (2*l+2) * self.nspins
                 channel = '{0}{1}'.format(istate, orbitals[l])
                 pdos_kind[channel] = np.zeros((ncomponents, npoints), np.float)
             for iatom in info['iatom']:
@@ -124,7 +124,7 @@ class DOS:
                     filename = self.directory + '/projwfc/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kind, istate, orbitals[l])
                     channel = '{0}{1}'.format(istate, orbitals[l])
                     pdosinp = np.genfromtxt(filename)
-                    ncomponents = (2*l+1) * self.nspins + 1
+                    ncomponents = (2*l+2) * self.nspins
                     pdos_atom[channel] = np.zeros((ncomponents, npoints), np.float)
                     for j in range(ncomponents):
                         pdos_atom[channel][j] += pdosinp[:, j + 1]
@@ -331,8 +331,9 @@ class DOS:
     def get_pdos(self, species, orbital):
         dos = self.pdos_kinds[species][orbital]
         return self.pdos_energies, dos
-    def get_d_band_center(sef, species = None, orbital = 'd'):
-        pdos_kinds
+    def get_d_band_center(self, species = None, orbital = 'd'):
+        '''
+        '''
         energies, dos = self.get_pdos(species, orbital)
         Nstates = np.trapz(dos, energies)
         occupied = energies <= 0.0

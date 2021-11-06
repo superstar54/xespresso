@@ -170,10 +170,10 @@ def update_Hubbard_parameters(U_dict,pseudopotentials,Hubbard_site,atoms):
     for site in Hubbard_U.keys():
         pseudopotentials[site] = pseudo_name
         
-    atoms.info['species'] = atoms.get_chemical_symbols()
+    atoms.arrays['species'] = atoms.get_chemical_symbols()
     
     for site, info in U_dict.items():
-        atoms.info['species'][int(site)-1] = info["new_label"]
+        atoms.arrays['species'][int(site)-1] = info["new_label"]
     
     return {"Hubbard_U": Hubbard_U,
             "starting_magnetization":starting_magnetization,
@@ -607,9 +607,9 @@ class Uscsd():
             else:
                 atoms_iter = self.atoms
                 atoms_iter.calc = calc 
-                atoms_iter.info['species'] = atoms_iter.get_chemical_symbols()
+                atoms_iter.arrays['species'] = atoms_iter.get_chemical_symbols()
                 for site, info in new_U.items():
-                    atoms_iter.info['species'][int(site)-1] = info["new_label"]
+                    atoms_iter.arrays['species'][int(site)-1] = info["new_label"]
 
 
             print("- Running (first) scf step")    

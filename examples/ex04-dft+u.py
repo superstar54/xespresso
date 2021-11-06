@@ -6,8 +6,8 @@ from ase.io import read
 from xespresso import Espresso
 
 atoms = bulk('Fe', cubic = True)
-atoms.info['species'] = atoms.get_chemical_symbols()
-atoms.info['species'][1] = 'Fe1'
+atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.arrays['species'][1] = 'Fe1'
 input_ntyp = {
     'starting_magnetization': {'Fe': 0.5, 'Fe1': -0.5, },
     'Hubbard_U': {'Fe': 4.3, 'Fe1': 4.3},
