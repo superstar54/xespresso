@@ -81,7 +81,7 @@ Some atoms are special:
 For example, Fe with spin state AFM. See example/spin.py
 
 ``` python
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
 atoms.arrays['species'][1] = 'Fe1'
 ```
 

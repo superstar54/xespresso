@@ -170,7 +170,7 @@ def update_Hubbard_parameters(U_dict,pseudopotentials,Hubbard_site,atoms):
     for site in Hubbard_U.keys():
         pseudopotentials[site] = pseudo_name
         
-    atoms.arrays['species'] = atoms.get_chemical_symbols()
+    atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
     
     for site, info in U_dict.items():
         atoms.arrays['species'][int(site)-1] = info["new_label"]
@@ -607,7 +607,7 @@ class Uscsd():
             else:
                 atoms_iter = self.atoms
                 atoms_iter.calc = calc 
-                atoms_iter.arrays['species'] = atoms_iter.get_chemical_symbols()
+                atoms_iter.new_array('species', np.array(atoms_iter.get_chemical_symbols(), dtype = 'U20'))
                 for site, info in new_U.items():
                     atoms_iter.arrays['species'][int(site)-1] = info["new_label"]
 

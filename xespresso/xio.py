@@ -125,8 +125,7 @@ def build_atomic_species_str(atoms, input_parameters, pseudopotentials):
     # Species info holds the information on the pseudopotential and
     # associated for each element
     if 'species' not in atoms.arrays:
-        # print('no species')
-        atoms.arrays['species'] = atoms.get_chemical_symbols()
+        atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
     if pseudopotentials is None:
         pseudopotentials = {}
     species_info = {}
@@ -223,7 +222,7 @@ def build_atomic_positions_str(atoms, crystal_coordinates):
     '''
     import sys
     if 'species' not in atoms.arrays:
-        atoms.arrays['species'] = atoms.get_chemical_symbols()
+        atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
     else:
         if len(atoms.arrays['species']) != len(atoms):
             sys.exit('Species is wrong, please check!')

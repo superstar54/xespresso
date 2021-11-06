@@ -1,10 +1,11 @@
 from ase.build import bulk
 from ase.visualize import view
 from xespresso import Espresso
+import numpy as np
 
 atoms = bulk('Fe', cubic = True)
 # set new species for afm state
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
 atoms.arrays['species'][1] = 'Fe1'
 input_ntyp = {'starting_magnetization': {'Fe': 1.0, 'Fe1': -1.0, }}
 

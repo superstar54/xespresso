@@ -4,9 +4,10 @@ Example using 1) AFM 2) DFT+U
 from ase.build import bulk
 from ase.io import read
 from xespresso import Espresso
+import numpy as np
 
 atoms = bulk('Fe', cubic = True)
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
 atoms.arrays['species'][1] = 'Fe1'
 input_ntyp = {
     'starting_magnetization': {'Fe': 0.5, 'Fe1': -0.5, },

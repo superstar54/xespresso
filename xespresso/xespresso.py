@@ -361,7 +361,8 @@ class Espresso(FileIOCalculator):
             constraints = get_atomic_constraints(pwo, len(output))
             output.set_constraint(None)
             output.set_constraint(constraints)
-            if atomic_species: output.arrays['species'] = atomic_species
+            if atomic_species:
+                output.new_array('species', np.array(atomic_species, dtype = 'U20'))
             self.calc = output.calc
             self.results = output.calc.results
             self.results['atoms'] = output

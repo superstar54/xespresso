@@ -2,9 +2,11 @@ from ase.build import bulk, sort
 from ase.io import read
 from ase.visualize import view
 from xespresso import Espresso
+import numpy as np
+
 atoms = read('datas/MnO.cif')
 # view(atoms)
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
 # set species Mn1, Mn2, ...
 for i in range(4):
     atoms.arrays['species'][2*i] = atoms.arrays['species'][2*i] + '%s'%(i+1)

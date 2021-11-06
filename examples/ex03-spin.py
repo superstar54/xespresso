@@ -1,8 +1,9 @@
 from ase.build import bulk
 from xespresso import Espresso
+import numpy as np
 
 atoms = bulk('Fe', cubic = True)
-atoms.arrays['species'] = atoms.get_chemical_symbols()
+atoms.new_array('species', np.array(atoms.get_chemical_symbols(), dtype = 'U20'))
 atoms.arrays['species'][0] = 'Fe'
 atoms.arrays['species'][1] = 'Fe1'
 print(atoms.arrays['species'])
