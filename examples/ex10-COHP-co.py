@@ -29,14 +29,25 @@ print('Energy = {0:1.3f} eV'.format(e))
 cohp = COHP(
     directory='scf/co',  # same as label in scf calculation
     prefix='co',  # same as scf calculation
-    index=[[1, 2]],  # the bond of interest
+    index=[[1, 2]],  # the bond of interest, multiple bond can be set as [[1,2],[3,5]]
     command='your lobster path'  # path of lobster program
+    # other arguments can also be parsed, such as follows
+    # enter the energetic window in eV (relative to the Fermi level)
+    COHPStartEnergy = -10,
+    COHPEndEnergy = 5
+    # specify the basis functions per element manually
+    # basisFunctions = ['Fe 3s 3p 3d 4s','S 3s 3p']
 )
 cohp.write_input()
 cohp.run()
 
-# read COHP results and plot
-cohp.read_coop()
+# read lobster results and plot
 cohp.read_cohp()
 cohp.plot_coop()
 cohp.plot_cohp()
+
+# read integrated lobster results
+cohp.read_icohp()
+cohp.icobi
+cohp.icohp
+cohp.icoop
