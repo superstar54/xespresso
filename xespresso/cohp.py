@@ -16,6 +16,9 @@ class COHP:
                  **kwargs):
         """
         Energetic window [COHPstartEnergy, COHPendEnergy]
+
+        Args:
+            command (str, optional): Path to lobster executable file.
         """
         self.directory = directory
         self.prefix = prefix
@@ -76,32 +79,54 @@ class COHP:
         dos = VaspDos(os.path.join(self.directory, 'DOSCAR.lobster'))
         self.dos = dos._total_dos[1]
         self.dos_energies = dos._total_dos[0]
-        #
+        # read COHP results
         datas = np.genfromtxt(os.path.join(self.directory, 'COHPCAR.lobster'),
                               skip_header=3 + len(self.indexs))
         self.cohp = datas[:, 1]
         self.cohp_energies = datas[:, 0]
-        #
+        # read COOP results
         datas = np.genfromtxt(os.path.join(self.directory, 'COOPCAR.lobster'),
                               skip_header=3 + len(self.indexs))
         self.coop = datas[:, 1]
         self.coop_energies = datas[:, 0]
+        # read COBI results
+        datas = np.genfromtxt(os.path.join(self.directory, 'COBICAR.lobster'),
+                              skip_header=3 + len(self.indexs))
+        self.cobi = datas[:, 1]
+        self.cobi_energies = datas[:, 0]
 
     def read_icohp(self, ):
         """read icohp data for bond strength evaluation
         """
         from ase.calculators.vasp import VaspDos
+        import pandas as pd
+        # read icohp
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOHPLIST.lobster'),
-                              skip_header=1 + len(self.indexs))
-        self.icohp = datas
+                                           dtype = [int, 'S5','S5',float,float], 
+                                           usecols=(0,1,2,3,7),
+                                           names=['interaction','atom1','atom2','distance','ICOHP'],
+                                           skip_header=1)
+        self.icohp = pd.DataFrame(datas)
         # self.icohp_energies = datas[:, 7]
-        #
+        # read icoop
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOOPLIST.lobster'),
-                              skip_header=1 + len(self.indexs))
-        self.icoop = datas
+                                           dtype = [int, 'S5','S5',float,float], 
+                                           usecols=(0,1,2,3,7),
+                                           names=['interaction','atom1','atom2','distance','ICOOP'],
+                                           skip_header=1)
+        self.icoop = pd.DataFrame(datas)
         # self.icoop_energies = datas[:, 7]
+        # read icobi
+        datas = np.genfromtxt(os.path.join(self.directory,
+                                           'ICOHPLIST.lobster'),
+                                           dtype = [int,'S5','S5',float,float], 
+                                           usecols=(0,1,2,3,7),
+                                           names=['interaction','atom1','atom2','distance','ICOBI'],
+                                           skip_header=1)
+        self.icobi = pd.DataFrame(datas)
+        # self.icobi_energies = datas[:, 7]
 
     def plot_cohp(self, ax=None, output=None):
         """create a DOS and COHP plot
@@ -118,8 +143,10 @@ class COHP:
             fig, ax = plt.subplots(1, 2)
         ax[0].plot(self.dos, self.dos_energies)
         ax[0].set_ylabel('E-Ef (eV)')
+        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
         ax[1].plot(-self.cohp, self.cohp_energies)
-        ax[1].axvline(x=0, color='k')
+        ax[1].axvline(x=0, color='k', linewidth = 0.2)
+        ax[1].axhline(y=0, color='k', linewidth = 0.2, linestyle = '--')
         ax[0].set_xlabel('DOS')
         ax[1].set_xlabel('-pCOHP')
         if output:
@@ -141,10 +168,37 @@ class COHP:
             fig, ax = plt.subplots(1, 2)
         ax[0].plot(self.dos, self.dos_energies)
         ax[0].set_ylabel('E-Ef (eV)')
+        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
         ax[1].plot(self.coop, self.coop_energies)
-        ax[1].axvline(x=0, color='k')
+        ax[1].axvline(x=0, color='k', linewidth = 0.5)
+        ax[1].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
         ax[0].set_xlabel('DOS')
         ax[1].set_xlabel('pCOOP')
+        if output:
+            plt.savefig(output)
+        return ax
+
+    def plot_cobi(self, ax=None, output=None):
+        """create a DOS with COBI plot
+
+        Args:
+            ax (COHP object, optional): Defaults to None.
+            output (string, optional): filename if want to save plot. Defaults to None.
+
+        Returns:
+            plot: a DOS with COBI plot
+        """
+        import matplotlib.pyplot as plt
+        if ax is None:
+            fig, ax = plt.subplots(1, 2)
+        ax[0].plot(self.dos, self.dos_energies)
+        ax[0].set_ylabel('E-Ef (eV)')
+        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[1].plot(self.cobi, self.cobi_energies)
+        ax[1].axvline(x=0, color='k', linewidth = 0.5)
+        ax[1].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[0].set_xlabel('DOS')
+        ax[1].set_xlabel('COBI')
         if output:
             plt.savefig(output)
         return ax
