@@ -18,7 +18,7 @@ orbitals = ['s', 'p', 'd', 'f']
 
 class DOS:
     def __init__(self, calc = None, label = None, prefix = None,
-                 debug = False, colors = None):
+                 debug = False, colors = None, spin_orbit_coupling = False):
         """Electronic Density Of States object.
 
         calc: quantum espresso calculator object
@@ -35,6 +35,7 @@ class DOS:
             calc = Espresso(label = label, prefix = prefix, debug = True)
         calc.read_results()
         self.debug = debug
+        self.spin_orbit_coupling = spin_orbit_coupling
         if self.debug:
             print(calc.results)
         self.directory = calc.directory
@@ -70,8 +71,8 @@ class DOS:
         post_info: dict,
             e.g. {'Al': {'iatom': [1, 2, 3, 4], 'istate': {1: 0, 2: 1}}}
         '''
-        import re
-        reg = re.compile('\w+')
+        # import re
+        # reg = re.compile('\w+')
         # 
         kinds = []
         pdos_info = {}
@@ -79,11 +80,18 @@ class DOS:
             lines = f.readlines()
             for line in lines:
                 if 'state #' in line:
-                    data = reg.findall(line)
+                    for s in [',', '(', ')', '=', '#']:
+                        line = line.replace(s, ' ')
+                    data = line.split()
                     iatom = int(data[3])
                     kind = data[4]
                     istate = int(data[6])
-                    l = int(data[8])
+                    if self.spin_orbit_coupling:
+                        l = int(data[10])
+                        j = float(data[8])
+                    else:
+                        l = int(data[8])
+                        j = None
                     if kind not in kinds:
                         kinds.append(kind)
                         pdos_info[kind] = {}
@@ -92,7 +100,10 @@ class DOS:
                     if iatom not in pdos_info[kind]['iatom']:
                         pdos_info[kind]['iatom'].append(iatom)
                     if istate not in pdos_info[kind]['istate']:
-                        pdos_info[kind]['istate'][istate] = l
+                        if j:
+                            pdos_info[kind]['istate'][istate] = [l, '_j%s'%j]
+                        else:
+                            pdos_info[kind]['istate'][istate] = [l]
         self.kinds = kinds
         self.pdos_info = pdos_info
         if self.debug: print(self.pdos_info)
@@ -115,16 +126,19 @@ class DOS:
         for kind, info in self.pdos_info.items():
             pdos_kind = {}
             for istate, l in info['istate'].items():
-                ncomponents = (2*l+2) * self.nspins
-                channel = '{0}{1}'.format(istate, orbitals[l])
+                ncomponents = (2*l[0]+2) * self.nspins
+                channel = '{0}{1}'.format(istate, orbitals[l[0]])
                 pdos_kind[channel] = np.zeros((ncomponents, npoints), np.float)
             for iatom in info['iatom']:
                 pdos_atom = {}
                 for istate, l in info['istate'].items():
-                    filename = self.directory + '/projwfc/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kind, istate, orbitals[l])
-                    channel = '{0}{1}'.format(istate, orbitals[l])
+                    if self.spin_orbit_coupling:
+                        filename = self.directory + '/projwfc/{0}.pdos_atm#{1}({2})_wfc#{3}({4}{5})'.format(self.prefix, iatom, kind, istate, orbitals[l[0]], l[1])
+                    else:
+                        filename = self.directory + '/projwfc/{0}.pdos_atm#{1}({2})_wfc#{3}({4})'.format(self.prefix, iatom, kind, istate, orbitals[l[0]])
+                    channel = '{0}{1}'.format(istate, orbitals[l[0]])
                     pdosinp = np.genfromtxt(filename)
-                    ncomponents = (2*l+2) * self.nspins
+                    ncomponents = (2*l[0]+2) * self.nspins
                     pdos_atom[channel] = np.zeros((ncomponents, npoints), np.float)
                     for j in range(ncomponents):
                         pdos_atom[channel][j] += pdosinp[:, j + 1]
