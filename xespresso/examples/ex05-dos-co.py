@@ -21,21 +21,44 @@ calc = Espresso(label = 'scf/co',
 atoms.calc = calc
 e = atoms.get_potential_energy()
 print('Energy = {0:1.3f} eV'.format(e))
-#===============================================================
-# start nscf calculation
 fe = calc.get_fermi_level()
 print('fermi level: ', fe)
-calc.nscf(occupations = 'tetrahedra', kpts = (3, 3, 3))
-calc.nscf_calculate()
-# dos, projwfc
-calc.post(package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
-calc.post(package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+#===============================================================
+# start nscf calculation
+from xespresso.post.nscf import EspressoNscf
+nscf = EspressoNscf(calc.directory, prefix = calc.prefix, 
+                occupations = 'tetrahedra',
+                kpts = (2, 2, 2),
+                debug = True,
+                )
+nscf.run()
+#===============================================================
+from xespresso.post.dos import EspressoDos
+# dos
+dos = EspressoDos(parent_directory = 'calculations/scf/co',
+            prefix = calc.prefix,
+            Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+dos.run()
+#
+from xespresso.dos import DOS
+import matplotlib.pyplot as plt
 # DOS analysis
-dos = DOS(label = 'scf/co', prefix='co')
+dos = DOS(label = 'calculations/scf/co', prefix='co')
 dos.read_dos()
 dos.plot_dos(Emin = -10, Emax = 10, smearing = [0.02, 0.01])
 plt.savefig('images/co-dos.png')
+
+#===========================================
+# pdos
+from xespresso.post.projwfc import EspressoProjwfc
+projwfc = EspressoProjwfc(parent_directory = 'calculations/scf/co',
+            prefix = 'co',
+            DeltaE = 0.01)
+projwfc.run()
+from xespresso.dos import DOS
+import matplotlib.pyplot as plt
+# PDOS analysis
+dos = DOS(label = 'calculations/scf/co', prefix='co')
 dos.read_pdos()
 dos.plot_pdos(Emin = -10, Emax = 10, smearing = [0.02, 0.01], legend = True)
 plt.savefig('images/co-pdos.png')
-
