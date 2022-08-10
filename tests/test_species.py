@@ -61,7 +61,7 @@ def test_dft_u():
     'Fe1': 'Fe.pbe-spn-rrkjus_psl.1.0.0.UPF',
     }
     calc = Espresso(pseudopotentials = pseudopotentials, 
-                    label  = 'calculations/scf/fe+u',
+                    label  = 'calculations/scf/fe-afm',
                     input_data = input_data, 
                     kpts=(4, 4, 4),
                     debug = True,
