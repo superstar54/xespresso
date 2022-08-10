@@ -27,6 +27,7 @@ def test_scf():
         print(e)
     os.system('ls calculations/scf/h2')
     os.system('cat calculations/scf/h2/CRASH')
+    os.system('cat calculations/scf/h2/h2o.pwo')
 
 def test_relax():
     from ase.build import molecule
@@ -52,3 +53,4 @@ def test_relax():
         print(e)
     os.system('ls calculations/relax/h2')
     os.system('cat calculations/relax/h2/CRASH')
+    os.system('cat calculations/relax/h2/h2o.pwo')
