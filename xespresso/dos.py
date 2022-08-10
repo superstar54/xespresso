@@ -353,9 +353,9 @@ class DOS:
         occupied = energies <= 0.0
         N_occupied_states = np.trapz(dos[occupied], energies[occupied])
         # first moment
-        ed = np.trapz(energies * dos, energies) / Nstates
+        d_center = np.trapz(energies * dos, energies) / Nstates
         # second moment
-        wd2 = np.trapz(energies**2 * dos, energies) / Nstates
+        d_width = np.trapz(energies**2 * dos, energies) / Nstates
         return d_center, d_width
     def smearing(self, energies, dos, sigma = 0.1, de=0.01, total = False):
         '''

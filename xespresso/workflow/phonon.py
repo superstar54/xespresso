@@ -144,7 +144,8 @@ class Phonon(Base):
         self.results[job] = deepcopy(calc.results)
         calc.clean()
         return job, self.results[job]['energy']
-    def dfpt(self):
+    
+    def dfpt(self, job, queue):
         '''
         '''
         atoms = self.atoms

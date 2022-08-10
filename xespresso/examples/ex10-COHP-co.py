@@ -30,7 +30,7 @@ cohp = COHP(
     directory='scf/co',  # same as label in scf calculation
     prefix='co',  # same as scf calculation
     index=[[1, 2]],  # the bond of interest, multiple bond can be set as [[1,2],[3,5]]
-    command='your lobster path'  # path of lobster program
+    command='your lobster path',  # path of lobster program
     # other arguments can also be parsed, such as follows
     # enter the energetic window in eV (relative to the Fermi level)
     COHPStartEnergy = -10,

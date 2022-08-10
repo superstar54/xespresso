@@ -63,6 +63,7 @@ def write_espresso_in(filename, atoms, input_data={}, pseudopotentials=None,
 def build_section_str(atoms, species_info, input_data, input_parameters):
     '''
     '''
+    from ase.io.espresso import cell_to_ibrav, ibrav_to_cell
     # Add computed parameters
     # different magnetisms means different types
     input_parameters['system']['ntyp'] = len(species_info)
@@ -178,6 +179,7 @@ def build_cell_str(atoms, input_parameters):
 def build_kpts_str(atoms, kspacing, kpts, koffset):
     '''
     '''
+    from ase.io.espresso import kspacing_to_grid
     # KPOINTS - add a MP grid as required
     if kspacing is not None:
         kgrid = kspacing_to_grid(atoms, kspacing)

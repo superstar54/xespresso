@@ -63,11 +63,10 @@ def is_espresso(path):
     return False
 
 
-if __name__ == '__main__':
-    summary('.')
 
 # tools
 def summary(updates = [], prefix = 'datas'):
+    import pickle
     import pandas as pd
     columns = ['label', 'atoms', 'cell', 'positions', 'energy', 'forces', 'stress']
     file = '%s.pickle' % prefix
@@ -108,3 +107,6 @@ def summary(updates = [], prefix = 'datas'):
         pickle.dump([datas, df], f)
     print('Finished')
 
+
+if __name__ == '__main__':
+    summary('.')
