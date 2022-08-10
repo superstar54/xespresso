@@ -1,5 +1,5 @@
 import pathlib
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
@@ -22,7 +22,7 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         "Programming Language :: Python :: 3.5",
     ],
-    packages=["xespresso"],
+    packages=find_packages(),
     include_package_data=True,
     install_requires=["ase", "numpy", "scipy", "matplotlib"],
     python_requires='>=3.5',
