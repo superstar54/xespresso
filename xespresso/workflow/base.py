@@ -163,6 +163,8 @@ class Base():
     def build_children(self):
         pass
     def run_command(self, command = None):
+        import subprocess
+        from ase.calculators.calculator import CalculationFailed
         if command is None:
             command = self.command
         print('Running %s'%command)

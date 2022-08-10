@@ -121,9 +121,14 @@ calc = Espresso(pseudopotentials = pseudopotentials,
 A example of nscf calculation following the above one.
 
 ``` python
-calc.read_results()
-calc.nscf(queue = queue, kpts = (12, 12, 12))
-calc.nscf_calculate()
+# start nscf calculation
+from xespresso.post.nscf import EspressoNscf
+nscf = EspressoNscf(calc.directory, prefix = calc.prefix, 
+                occupations = 'tetrahedra',
+                kpts = (2, 2, 2),
+                debug = True,
+                )
+nscf.run()
 ```
 
 #### Calculate dos and pdos
@@ -131,9 +136,18 @@ calc.nscf_calculate()
 A example of calculating and plotting the pdos from the nscf calculation.
 
 ``` python
-calc.read_results()
-calc.post(queue = queue, package = 'dos', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
-calc.post(queue = queue, package = 'projwfc', Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+from xespresso.post.dos import EspressoDos
+# dos
+dos = EspressoDos(parent_directory = 'calculations/scf/co',
+            prefix = calc.prefix,
+            Emin = fe - 30, Emax = fe + 30, DeltaE = 0.01)
+dos.run()
+# pdos
+from xespresso.post.projwfc import EspressoProjwfc
+projwfc = EspressoProjwfc(parent_directory = 'calculations/scf/co',
+            prefix = 'co',
+            DeltaE = 0.01)
+projwfc.run()
 ```
 <!-- <img src="examples/figs/al-pdos.png" width="500"/> -->
 
