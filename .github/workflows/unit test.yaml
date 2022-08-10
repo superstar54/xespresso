@@ -1,4 +1,4 @@
-name: Test Xnodes package using Docker image
+name: Unit Test
 
 on: [push]
 
@@ -11,10 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     
     container:
-      # env is not
       image: superstar54/ase:ubuntu20.04
-      # Will need pytest installation
-      # options: --user root
 
     steps:
       - uses: actions/checkout@v3
