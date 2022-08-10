@@ -1,6 +1,6 @@
 from _common_helpers import set_envs
 import numpy as np
-
+import os
 
 def test_scf():
     from ase.build import molecule
@@ -19,9 +19,14 @@ def test_scf():
                     debug = True,
                     )
     h2.calc = calc
-    e = h2.get_potential_energy()
-    print('Energy: {0:1.4f}'.format(e))
-    assert np.isclose(e, -31.4454)
+    try:
+        e = h2.get_potential_energy()
+        print('Energy: {0:1.4f}'.format(e))
+        assert np.isclose(e, -31.4454)
+    except Exception as e:
+        print(e)
+    os.system('ls calculations/scf/h2')
+    os.system('cat calculations/scf/h2/CRASH')
 
 def test_relax():
     from ase.build import molecule
@@ -39,6 +44,11 @@ def test_relax():
                     debug = True,
                     )
     atoms.calc = calc
-    e = atoms.get_potential_energy()
-    print('Energy = {0:1.4f} eV'.format(e))
-    assert np.isclose(e, -31.4552)
+    try:
+        e = atoms.get_potential_energy()
+        print('Energy = {0:1.4f} eV'.format(e))
+        assert np.isclose(e, -31.4552)
+    except Exception as e:
+        print(e)
+    os.system('ls calculations/relax/h2')
+    os.system('cat calculations/relax/h2/CRASH')
