@@ -9,12 +9,12 @@ logger = logging.getLogger(__name__)
 
 class EspressoNscf(FileIOCalculator):
 
-    package='pw'
+    package = 'pw'
 
     def __init__(self, scf_directory, prefix, parallel='',
-            queue=None, debug=False, 
-            kpts = (10, 10, 10), 
-            **kwargs):
+                 queue=None, debug=False,
+                 kpts=(10, 10, 10),
+                 **kwargs):
         print("{0:=^60}".format('nscf'))
         self.scf_directory = scf_directory
         self.prefix = prefix
@@ -29,10 +29,10 @@ class EspressoNscf(FileIOCalculator):
         #
         self.directory = os.path.join(self.scf_directory, 'nscf')
         self.label = os.path.join(self.directory, self.prefix)
-        self.asei = os.path.join(self.directory, '%s.nscf_asei'%self.prefix)
+        self.asei = os.path.join(self.directory, '%s.nscf_asei' % self.prefix)
         # create working directory
         self.set_label(self.directory, self.prefix)
-    
+
     def set_label(self, label, prefix):
         '''
         set directory and prefix from label
@@ -45,17 +45,18 @@ class EspressoNscf(FileIOCalculator):
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
         self.label = os.path.join(self.directory, self.prefix)
-        self.pwi = os.path.join(self.directory, '%s.pwi'%self.prefix)
-        self.pwo = os.path.join(self.directory, '%s.pwo'%self.prefix)
-        self.save_directory = os.path.join(self.directory, '%s.save'%self.prefix)
-        logger.debug('Directory: %s'%(self.directory))
-        logger.debug('Prefix: %s'%(self.prefix))
+        self.pwi = os.path.join(self.directory, '%s.pwi' % self.prefix)
+        self.pwo = os.path.join(self.directory, '%s.pwo' % self.prefix)
+        self.save_directory = os.path.join(
+            self.directory, '%s.save' % self.prefix)
+        logger.debug('Directory: %s' % (self.directory))
+        logger.debug('Prefix: %s' % (self.prefix))
 
     def load_scf(self):
         """load parameters and results from privous scf calculation
         """
         import copy
-        asei = os.path.join(self.scf_directory, '%s.asei'%self.prefix)
+        asei = os.path.join(self.scf_directory, '%s.asei' % self.prefix)
         self.atoms, self.scf_parameters = read_espresso_asei(asei, 'PW')
         self.parameters = copy.deepcopy(self.scf_parameters)
         self.parameters['input_data']['CONTROL']['calculation'] = 'nscf'
@@ -68,8 +69,8 @@ class EspressoNscf(FileIOCalculator):
         from xespresso.xio import write_espresso_asei, write_espresso_in
         from xespresso.scheduler import set_queue
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
-        set_queue(self, package = self.package, parallel = self.parallel,
-                queue = self.queue)
+        set_queue(self, package=self.package, parallel=self.parallel,
+                  queue=self.queue)
         write_espresso_in(self.label + '.pwi', atoms, **self.parameters)
         logger.debug("write asei file: {}".format(self.asei))
         logger.debug("  with parameters: {}".format(self.parameters))
@@ -79,10 +80,11 @@ class EspressoNscf(FileIOCalculator):
     @property
     def state_info(self):
         from xespresso.utils import get_hash
-        chargeFile = os.path.join(self.scf_directory, '%s.save/charge-density.dat'%self.prefix)
+        chargeFile = os.path.join(
+            self.scf_directory, '%s.save/charge-density.dat' % self.prefix)
         state_info = get_hash(chargeFile)
         return state_info
-    
+
     def check_state(self, ):
         # read information of the charge-density file
         self.state_parameters = self.parameters
@@ -90,7 +92,7 @@ class EspressoNscf(FileIOCalculator):
         logger.debug("Check state: {}".format(meg))
         if output:
             if os.path.isfile(self.asei):
-                system_changes =  self.check_state_post(self.asei, package='PW')
+                system_changes = self.check_state_post(self.asei, package='PW')
                 if not system_changes:
                     logger.debug('Use previous results!')
                     return False
@@ -101,10 +103,11 @@ class EspressoNscf(FileIOCalculator):
             logger.debug('No pw output. Start a new calculation.')
 
         return True
-    
+
     def check_state_post(self, asei, package):
         logger.debug("asei file: {}".format(asei))
-        old_state_info, old_state_parameters = read_espresso_asei(asei, package)
+        old_state_info, old_state_parameters = read_espresso_asei(
+            asei, package)
         if not self.state_info == old_state_info:
             logger.debug('File in save changed')
             return True
@@ -116,21 +119,21 @@ class EspressoNscf(FileIOCalculator):
         else:
             return False
 
-    def read_convergence_post(self, package = 'pw'):
+    def read_convergence_post(self, package='pw'):
         '''
         Read the status of the calculation.
         {
         '0': 'Done',
         }
         '''
-        output = self.label + '.%so'%package
+        output = self.label + '.%so' % package
         logger.debug("read output: {}".format(output))
         if not os.path.exists(output):
             # print('%s not exists'%output)
             return False, 'No pwo output file'
         with open(output, 'r') as f:
             lines = f.readlines()
-            if len(lines) == 0: 
+            if len(lines) == 0:
                 return False, 'pwo file has nothing'
             nlines = len(lines)
             n = min([100, nlines])
@@ -139,7 +142,7 @@ class EspressoNscf(FileIOCalculator):
                     logger.debug('JOB DONE.')
                     return True, line
         return False, line
-    
+
     def run(self):
         if self.check_state():
             self.calculate()
