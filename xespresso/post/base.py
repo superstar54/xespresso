@@ -17,6 +17,11 @@ class PostCalculation:
         self.queue = queue
         self.parallel = parallel
         self.parameters = kwargs
+        self.directory = os.path.join(self.parent_directory, '%s/'%self.package)
+        self.set_label(self.directory, self.prefix)
+        self.parameters['prefix'] = self.prefix
+        self.parameters['outdir'] = '../'
+        self.state_info = None
 
     def set_label(self, label, prefix):
         '''
@@ -41,15 +46,18 @@ class PostCalculation:
         '''
         todo: 
         '''
-        from xespresso.utils import get_hash
         from xespresso.scheduler import set_queue
         
         print('{0:=^60}'.format(self.package))
-        self.directory = os.path.join(self.parent_directory, '%s/'%self.package)
-        self.set_label(self.directory, self.prefix)
-        self.parameters['prefix'] = self.prefix
-        self.parameters['outdir'] = '../'
-        self.state_parameters = copy.deepcopy(self.parameters)
+        if self.check_state() == 0:
+            return
+        self.write_input()
+        set_queue(self, package = self.package, parallel = self.parallel, queue = self.queue)
+        self.post_calculate()
+        self.post_read_results()
+
+    def check_state(self):
+        from xespresso.utils import get_hash
         self.state_info = None
         for wfc in ['wfc1', 'wfcdw1']:
             wfcFile = os.path.join(self.parent_directory, '%s.save/%s.dat'%(self.prefix, wfc))
@@ -63,32 +71,31 @@ class PostCalculation:
                 if not system_changes:
                     logger.debug('File and Parameters did not change. Use previous results!')
                     return 0
-        self.post_write_input(self.package, **self.state_parameters)
-        write_espresso_asei(self.post_asei, self.state_info, self.state_parameters)
-        set_queue(self, package = self.package, parallel = self.parallel, queue = self.queue)
-        self.post_calculate()
-        self.post_read_results()
+        return 1
 
     def check_state_post(self, asei, package):
-        old_state_info, old_state_parameters = read_espresso_asei(asei, package)
+        old_state_info, old_parameters = read_espresso_asei(asei, package)
         if not self.state_info == old_state_info:
             logger.debug('File in save changed')
             return True
-        elif not self.state_parameters == old_state_parameters:
+        elif not self.parameters == old_parameters:
             logger.debug('Parameters changed')
             return True
         else:
             return False
-    
 
-    def post_write_input(self, package, **kwargs):
-        filename = os.path.join(self.directory, '%s.%si' %(self.prefix, package))
+    def write_input(self):
+        self.write_package_input()
+        write_espresso_asei(self.post_asei, self.state_info, self.parameters)
+
+    def write_package_input(self):
+        filename = os.path.join(self.directory, '%s.%si' %(self.prefix, self.package))
         with open(filename, 'w') as f:
             for section, parameters in self.package_parameters.items():
                 # logger.debug(section)
                 if section != 'LINE':
                     f.write('&%s\n'%section)
-                    for key, value in kwargs.items():
+                    for key, value in self.parameters.items():
                         if key in parameters:
                             if isinstance(value, dict):
                                 for subkey, subvalue in value.items():
@@ -103,7 +110,7 @@ class PostCalculation:
                                     f.write('  {0:10s} =  {1} \n'.format(key, value))
                     f.write('/ \n')
                 else:
-                    for key, value in kwargs.items():
+                    for key, value in self.parameters.items():
                         if key in parameters:
                             f.write('  %s \n' %(value))
 
