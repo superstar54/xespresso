@@ -178,7 +178,7 @@ calc.calculate()
 calc.read_results()
 calc.plot()
 ```
-<img src="examples/images/neb.png" width="500"/>
+<img src="xespresso/examples/images/neb.png" width="500"/>
 
 
 ## Workflow

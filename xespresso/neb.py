@@ -7,38 +7,42 @@ from ase import Atoms
 from ase import io
 from xespresso import Espresso
 from xespresso.xio import write_neb_in, write_espresso_asei
-from ase.calculators.calculator import FileIOCalculator, compare_atoms
+from ase.calculators.calculator import FileIOCalculator
 from ase.utils.forcecurve import fit_raw
 from ase.units import create_units
 units = create_units('2006')
 
 
-    
 class NEBEspresso(Espresso):
     """
     """
-    implemented_properties = ['energy', 'forces', 'stress', 'magmoms', 'time', 'neb']
+    implemented_properties = ['energy', 'forces',
+                              'stress', 'magmoms', 'time', 'neb']
     command = 'neb.x  PARALLEL  -in  PREFIX.nebi  >  PREFIX.nebo'
 
-    def __init__(self, label='xespresso', prefix = None, images=[Atoms('')], package = 'neb', parallel = '',
-                 queue = None, debug = False,
+    def __init__(self, label='xespresso', prefix=None, images=[Atoms('')], package='neb', parallel='',
+                 queue=None, debug=False,
                  **kwargs):
         """
 
         """
         atoms = images[0]
-        Espresso.__init__(self, label = label, prefix = prefix, atoms = atoms, package = package, parallel = parallel,
-                 queue = queue, debug = debug, **kwargs)
+        Espresso.__init__(self, label=label, prefix=prefix, atoms=atoms, package=package, parallel=parallel,
+                          queue=queue, debug=debug, **kwargs)
         self.images = images
+
     def write_input(self, images, properties=None, system_changes=None):
-        FileIOCalculator.write_input(self, self.images, properties, system_changes)
+        FileIOCalculator.write_input(
+            self, self.images, properties, system_changes)
         write_neb_in(self.label + '.nebi', self.images, **self.parameters)
         write_espresso_asei(self.label + '.asei', self.images, self.parameters)
-    def get_neb_path_energy(self, images = None):
+
+    def get_neb_path_energy(self, images=None):
         if images is None:
             images = self.images
         paths, energies = self.get_property('neb', images)
         return paths, energies
+
     def read_results(self):
         paths, energies, error = self.read_dat()
         try:
@@ -66,19 +70,23 @@ class NEBEspresso(Espresso):
         except Exception as e:
             print('\nread path failed\n')
             print(e)
+
     def read_dat(self):
         data = np.loadtxt(self.directory+'/%s.dat' % self.prefix)
         paths, energies, error = data[:, 0], data[:, 1], data[:, 2]
         return paths, energies, error
+
     def read_int(self):
         data = np.loadtxt(self.directory+'/%s.int' % self.prefix)
         paths, energies = data[:, 0], data[:, 1]
         return paths, energies
+
     def read_xyz(self):
-        images = io.read(self.directory+'/%s.xyz' % self.prefix, index = ':')
+        images = io.read(self.directory+'/%s.xyz' % self.prefix, index=':')
         return images
+
     def read_path(self):
-        filename = os.path.join(self.directory, '%s.path'%self.prefix)
+        filename = os.path.join(self.directory, '%s.path' % self.prefix)
         nimages = len(self.images)
         natoms = len(self.images[0])
         image_gradients = []
@@ -100,6 +108,7 @@ class NEBEspresso(Espresso):
                 gradients = np.array(gradients) * units['Ry'] / units['Bohr']
                 image_gradients.append(-gradients)
         return image_positions, image_gradients
+
     def get_fit(self):
         """Returns the parameters for fitting images to band."""
         images = self.images
@@ -112,6 +121,7 @@ class NEBEspresso(Espresso):
         pbc = images[0].pbc
         s, E, Sfit, Efit, lines = fit_raw(E, F, R, A, pbc)
         return s, E, Sfit, Efit, lines
+
     def plot(self):
         import matplotlib.pyplot as plt
         plt.plot(self.paths, self.energies, 'o')
@@ -120,8 +130,9 @@ class NEBEspresso(Espresso):
         plt.ylabel('Energy (eV)')
         Eb = max(self.energies) - self.energies[0]
         Ef = max(self.energies) - self.energies[-1]
-        plt.title('Eb = %1.2f(eV), Ef = %1.2f'%(Eb, Ef))
+        plt.title('Eb = %1.2f(eV), Ef = %1.2f' % (Eb, Ef))
         plt.show()
+
     def plot_fit(self, ax=None):
         """Plots the NEB band on matplotlib axes object 'ax'. If ax=None
         returns a new figure object."""
@@ -150,7 +161,7 @@ class NEBEspresso(Espresso):
         return fig
 
 
-def interpolate(images, n = 10):
+def interpolate(images, n=10):
     '''
     Interpolate linearly the potisions of the middle temp:
     '''
@@ -180,4 +191,3 @@ def interpolate(images, n = 10):
         neb.interpolate()
         new_images.extend(neb.images)
         return new_images
-

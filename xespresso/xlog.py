@@ -1,7 +1,6 @@
 from ase import __version__ as ase_version
 from ase.utils import convert_string_to_fd
 from ase.utils import search_current_git_hash
-from ase.visualize import view
 import numpy as np
 import os
 import time
@@ -9,8 +8,10 @@ import sys
 import xespresso
 import ase
 
+
 class XLogger():
     """Class for handling all text output."""
+
     def __init__(self):
         self.verbose = False
         self._fd = None
@@ -39,7 +40,6 @@ class XLogger():
 
     def flush(self):
         self._fd.flush()
-
 
     def logo(self):
         self(' xespresso  ')
@@ -71,10 +71,11 @@ class XLogger():
     def print_atoms(self, atoms):
         self()
         self('{0:15s}: {1}'.format('    Formula', atoms.get_chemical_formula()))
-        self('{0:15s}: {1}'.format('    Cell', np.round(np.asarray(atoms.cell.cellpar()), 3)))
+        self('{0:15s}: {1}'.format('    Cell', np.round(
+            np.asarray(atoms.cell.cellpar()), 3)))
         self('{0:15s}: {1}'.format('    PBC', atoms.pbc))
         self('{0:15s}:'.format('    Info'))
-        self.print_dict(atoms.info, sep = '        ')
+        self.print_dict(atoms.info, sep='        ')
 
     def print_calculator(self, calc):
         self()
@@ -82,7 +83,7 @@ class XLogger():
         self('Package: ')
         self('  k-point: ', )
         self('  Pseudopotentials: \n')
-        
+
     def print_dict(self, dct, sep='  '):
         options = np.get_printoptions()
         try:

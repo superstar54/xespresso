@@ -4,9 +4,10 @@ logger = logging.getLogger(__name__)
 
 
 config_files = [os.path.join(os.environ['HOME'], '.xespressorc'),
-            '.xespressorc']
-            
-def set_queue(calc, package = None, parallel = None, queue = None, command = None):
+                '.xespressorc']
+
+
+def set_queue(calc, package=None, parallel=None, queue=None, command=None):
     '''
     If queue, change command to "sbatch .job_file".
     The queue information are written into '.job_file'
@@ -35,7 +36,7 @@ def set_queue(calc, package = None, parallel = None, queue = None, command = Non
         command = command.replace('PREFIX', calc.prefix)
     if 'PARALLEL' in command:
         command = command.replace('PARALLEL', parallel)
-    logger.debug('Espresso command: %s'%(command))
+    logger.debug('Espresso command: %s' % (command))
     if queue:
         script = ''
         if 'config' in queue:
@@ -56,12 +57,13 @@ def set_queue(calc, package = None, parallel = None, queue = None, command = Non
             fh.writelines("#SBATCH --error=%s.err\n" % calc.prefix)
             fh.writelines("#SBATCH --wait\n")
             for key, value in queue.items():
-                if key == 'config': continue
+                if key == 'config':
+                    continue
                 if value:
-                    fh.writelines("#SBATCH --%s=%s\n" %(key, value))
-            fh.writelines("%s \n"%script)
+                    fh.writelines("#SBATCH --%s=%s\n" % (key, value))
+            fh.writelines("%s \n" % script)
             fh.writelines("%s \n" % command)
         calc.command = "sbatch {0}".format('.job_file')
     else:
         calc.command = command
-    logger.debug('Queue command: %s'%(calc.command))
+    logger.debug('Queue command: %s' % (calc.command))

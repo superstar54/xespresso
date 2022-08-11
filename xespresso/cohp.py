@@ -103,28 +103,31 @@ class COHP:
         # read icohp
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOHPLIST.lobster'),
-                                           dtype = [int, 'S5','S5',float,float], 
-                                           usecols=(0,1,2,3,7),
-                                           names=['interaction','atom1','atom2','distance','ICOHP'],
-                                           skip_header=1)
+                              dtype=[int, 'S5', 'S5', float, float],
+                              usecols=(0, 1, 2, 3, 7),
+                              names=['interaction', 'atom1',
+                                     'atom2', 'distance', 'ICOHP'],
+                              skip_header=1)
         self.icohp = pd.DataFrame(datas)
         # self.icohp_energies = datas[:, 7]
         # read icoop
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOOPLIST.lobster'),
-                                           dtype = [int, 'S5','S5',float,float], 
-                                           usecols=(0,1,2,3,7),
-                                           names=['interaction','atom1','atom2','distance','ICOOP'],
-                                           skip_header=1)
+                              dtype=[int, 'S5', 'S5', float, float],
+                              usecols=(0, 1, 2, 3, 7),
+                              names=['interaction', 'atom1',
+                                     'atom2', 'distance', 'ICOOP'],
+                              skip_header=1)
         self.icoop = pd.DataFrame(datas)
         # self.icoop_energies = datas[:, 7]
         # read icobi
         datas = np.genfromtxt(os.path.join(self.directory,
                                            'ICOHPLIST.lobster'),
-                                           dtype = [int,'S5','S5',float,float], 
-                                           usecols=(0,1,2,3,7),
-                                           names=['interaction','atom1','atom2','distance','ICOBI'],
-                                           skip_header=1)
+                              dtype=[int, 'S5', 'S5', float, float],
+                              usecols=(0, 1, 2, 3, 7),
+                              names=['interaction', 'atom1',
+                                     'atom2', 'distance', 'ICOBI'],
+                              skip_header=1)
         self.icobi = pd.DataFrame(datas)
         # self.icobi_energies = datas[:, 7]
 
@@ -143,10 +146,10 @@ class COHP:
             fig, ax = plt.subplots(1, 2)
         ax[0].plot(self.dos, self.dos_energies)
         ax[0].set_ylabel('E-Ef (eV)')
-        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[0].axhline(y=0, color='k', linewidth=0.5, linestyle='--')
         ax[1].plot(-self.cohp, self.cohp_energies)
-        ax[1].axvline(x=0, color='k', linewidth = 0.2)
-        ax[1].axhline(y=0, color='k', linewidth = 0.2, linestyle = '--')
+        ax[1].axvline(x=0, color='k', linewidth=0.2)
+        ax[1].axhline(y=0, color='k', linewidth=0.2, linestyle='--')
         ax[0].set_xlabel('DOS')
         ax[1].set_xlabel('-pCOHP')
         if output:
@@ -168,10 +171,10 @@ class COHP:
             fig, ax = plt.subplots(1, 2)
         ax[0].plot(self.dos, self.dos_energies)
         ax[0].set_ylabel('E-Ef (eV)')
-        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[0].axhline(y=0, color='k', linewidth=0.5, linestyle='--')
         ax[1].plot(self.coop, self.coop_energies)
-        ax[1].axvline(x=0, color='k', linewidth = 0.5)
-        ax[1].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[1].axvline(x=0, color='k', linewidth=0.5)
+        ax[1].axhline(y=0, color='k', linewidth=0.5, linestyle='--')
         ax[0].set_xlabel('DOS')
         ax[1].set_xlabel('pCOOP')
         if output:
@@ -193,10 +196,10 @@ class COHP:
             fig, ax = plt.subplots(1, 2)
         ax[0].plot(self.dos, self.dos_energies)
         ax[0].set_ylabel('E-Ef (eV)')
-        ax[0].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[0].axhline(y=0, color='k', linewidth=0.5, linestyle='--')
         ax[1].plot(self.cobi, self.cobi_energies)
-        ax[1].axvline(x=0, color='k', linewidth = 0.5)
-        ax[1].axhline(y=0, color='k', linewidth = 0.5, linestyle = '--')
+        ax[1].axvline(x=0, color='k', linewidth=0.5)
+        ax[1].axhline(y=0, color='k', linewidth=0.5, linestyle='--')
         ax[0].set_xlabel('DOS')
         ax[1].set_xlabel('COBI')
         if output:

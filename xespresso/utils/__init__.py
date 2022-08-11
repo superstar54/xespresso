@@ -1,7 +1,6 @@
 import numpy as np
 
 
-
 def get_hash(file):
     import hashlib
     with open(file, "rb") as f:
@@ -12,7 +11,8 @@ def get_hash(file):
             chunk = f.read(8192)
     hd = file_hash.hexdigest()
     return hd
-    
+
+
 def check_type(key, value, document):
     """
     """
@@ -21,20 +21,26 @@ def check_type(key, value, document):
             parameter_type = document[section][key][0]
             # print(type(value))
             if parameter_type == "CHARACTER":
-                   assert isinstance(value, str), '\n  Parameter: %s, should be a string!'%key
+                assert isinstance(
+                    value, str), '\n  Parameter: %s, should be a string!' % key
             elif parameter_type == 'REAL':
-                   assert isinstance(value, float) or isinstance(value, int), '\n  Parameter: %s, should be a float!'%key
+                assert isinstance(value, float) or isinstance(
+                    value, int), '\n  Parameter: %s, should be a float!' % key
             elif parameter_type == 'INTEGER':
-                   assert isinstance(value, int), '\n  Parameter: %s, should be a integer!'%key
+                assert isinstance(
+                    value, int), '\n  Parameter: %s, should be a integer!' % key
             elif parameter_type == 'LOGICAL':
-                   assert isinstance(value, bool), '\n  Parameter: %s, should be a bool!'%key
+                assert isinstance(
+                    value, bool), '\n  Parameter: %s, should be a bool!' % key
             option_list = document[section][key][1]
             if len(option_list) > 0:
-                   assert value in option_list, '\n  Parameter: %s = %s, should be in %s!'%(key, value, str(option_list))
+                assert value in option_list, '\n  Parameter: %s = %s, should be in %s!' % (
+                    key, value, str(option_list))
             return
-    assert '\n  Parameter: %s, is not a PWSCF parameter!'%key
-    
-def modify_text(text, type = 'CHARACTER'):
+    assert '\n  Parameter: %s, is not a PWSCF parameter!' % key
+
+
+def modify_text(text, type='CHARACTER'):
     if text == None:
         text = ''
     else:
@@ -54,7 +60,7 @@ def modify_text(text, type = 'CHARACTER'):
         try:
             text = float(text)
         except:
-            print('Failed: text %s'%text)
+            print('Failed: text %s' % text)
     if type.upper() == 'INTEGER':
         try:
             text = int(text)
