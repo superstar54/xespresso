@@ -18,4 +18,4 @@ class EspressoPp(PostCalculation):
                         }
 
     def __init__(self, parent_directory, prefix, queue=False, parallel='', **kwargs) -> None:
-        super().__init__(parent_directory, prefix, queue=False, parallel='', **kwargs)
+        super().__init__(parent_directory, prefix, queue=queue, parallel=parallel, **kwargs)
