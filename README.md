@@ -1,4 +1,6 @@
 ## xespresso
+[![Unit test](https://github.com/superstar54/xespresso/actions/workflows/unit_test.yaml/badge.svg)](https://github.com/superstar54/xespresso/actions/workflows/unit_test.yaml)
+
 Quantum ESPRESSO Calculator for Atomic Simulation Environment (ASE).
 
 For the introduction of ASE , please visit https://wiki.fysik.dtu.dk/ase/index.html
