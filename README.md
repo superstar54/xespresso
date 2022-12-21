@@ -50,9 +50,9 @@ export ESPRESSO_PSEUDO="/path/to/pseudo"
 A example of setting parameters for the queue. See example/queue.py
 
 ``` python
-queue = {'nodes': 4, 
-         'ntasks-per-node': 20, 
-         'partition': 'all', 
+queue = {'nodes': 4,
+         'ntasks-per-node': 20,
+         'partition': 'all',
          'time': '23:10:00'}
 calc = Espresso(queue = queue)
 ```
@@ -112,7 +112,7 @@ To control the number of processors in each group: -ni,
 -nk, -nb, -nt, -nd) are used.
 
 ``` python
-calc = Espresso(pseudopotentials = pseudopotentials, 
+calc = Espresso(pseudopotentials = pseudopotentials,
                  package = 'pw',
                  parallel = '-nk 2 -nt 4 -nd 144',  # parallel parameters
                  }
@@ -125,7 +125,7 @@ A example of nscf calculation following the above one.
 ``` python
 # start nscf calculation
 from xespresso.post.nscf import EspressoNscf
-nscf = EspressoNscf(calc.directory, prefix = calc.prefix, 
+nscf = EspressoNscf(calc.directory, prefix = calc.prefix,
                 occupations = 'tetrahedra',
                 kpts = (2, 2, 2),
                 debug = True,
@@ -162,7 +162,7 @@ calc.get_work_function()
 #### Restart from previous calculation
 ``` python
 calc.read_results()
-atoms = calc.results['atoms']       
+atoms = calc.results['atoms']
 calc.run(atoms = atoms, restart = 1)
 ```
 
@@ -186,14 +186,14 @@ calc.plot()
 ## Workflow
 ### Oxygen evolution reaction (OER) calculation
 
-The workflow includes four modules: 
+The workflow includes four modules:
 * OER_bulk
 * OER_pourbaix
 * OER_surface
 * OER_site
 
 
-The workflow can handle: 
+The workflow can handle:
 * Generate surface slab model from bulk structure
 * Determine the surface adsorption site
 * Determine the surface coverage(*, O*, OH*), Pourbaix diagram
@@ -206,7 +206,7 @@ oer = OER_site(slab,
                site_type = 'ontop',
                site = -1,
                height=2.0,
-	           calculator = parameters, 
+	           calculator = parameters,
                molecule_energies = molecule_energies,
                )
 oer.run()
@@ -214,4 +214,3 @@ oer.run()
 
 ### To do lists:
 * add `qPointsSpecs` and `Line-of-input` for phonon input file
-
