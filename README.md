@@ -151,7 +151,7 @@ projwfc = EspressoProjwfc(parent_directory = 'calculations/scf/co',
             DeltaE = 0.01)
 projwfc.run()
 ```
-<!-- <img src="examples/figs/al-pdos.png" width="500"/> -->
+<img src="docs/source/_static/images/co-pdos.png" width="500"/>
 
 #### Calculate work function
 ``` python
@@ -180,7 +180,7 @@ calc.calculate()
 calc.read_results()
 calc.plot()
 ```
-<img src="xespresso/examples/images/neb.png" width="500"/>
+<img src="docs/source/_static/images/neb.png" width="500"/>
 
 
 ## Workflow
