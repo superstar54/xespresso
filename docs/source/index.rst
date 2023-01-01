@@ -6,6 +6,7 @@
 Welcome to XEspresso's documentation!
 =====================================
 
+Quantum ESPRESSO Calculator for Atomic Simulation Environment (ASE).
 
 
 Functions

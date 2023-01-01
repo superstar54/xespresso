@@ -2,6 +2,11 @@ from xespresso.post.base import PostCalculation
 
 
 class EspressoDos(PostCalculation):
+    """_summary_
+
+    Args:
+        PostCalculation (_type_): _description_
+    """
 
     package = "dos"
     package_parameters = {

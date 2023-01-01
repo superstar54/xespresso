@@ -4,6 +4,15 @@
 Installation
 ===========================================
 
+**Dependencies**
+
+
+* Python
+* ASE
+* numpy
+* scipy
+* matplotlib
+
 The simplest way to install XEspresso is to use pip.
 
 .. code-block:: console

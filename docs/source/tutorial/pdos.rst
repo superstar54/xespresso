@@ -19,3 +19,9 @@ A example of calculating and plotting the pdos from the nscf calculation.
 
 .. image:: /_static/images/co-pdos.png
    :width: 10cm
+
+List of all Methods
+--------------------
+
+.. autoclass:: xespresso.post.projwfc.EspressoProjwfc
+   :members:

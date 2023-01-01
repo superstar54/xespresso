@@ -19,3 +19,10 @@ A example of calculating and plotting the pdos from the nscf calculation.
 
 .. image:: /_static/images/co-dos.png
    :width: 10cm
+
+
+List of all Methods
+--------------------
+
+.. autoclass:: xespresso.post.dos.EspressoDos
+   :members:

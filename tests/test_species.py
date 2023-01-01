@@ -1,12 +1,12 @@
-from _common_helpers import set_envs, bulk_h
+from _common_helpers import set_envs
 
 
-def test_spin():
+def test_spin(bulk_h):
     from xespresso import Espresso
     import numpy as np
 
     set_envs()
-    atoms = bulk_h()
+    atoms = bulk_h
     atoms.new_array("species", np.array(atoms.get_chemical_symbols(), dtype="U20"))
     atoms.arrays["species"][0] = "H"
     atoms.arrays["species"][1] = "H1"

@@ -20,3 +20,9 @@ A example of NEB calculation. See example/neb.py
 
 .. image:: /_static/images/neb.png
    :width: 10cm
+
+List of all Methods
+--------------------
+
+.. autoclass:: xespresso.neb.NEBEspresso
+   :members:
