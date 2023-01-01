@@ -137,7 +137,7 @@ class DOS:
             for istate, l in info["istate"].items():
                 ncomponents = (2 * l[0] + 2) * self.nspins
                 channel = "{0}{1}".format(istate, orbitals[l[0]])
-                pdos_kind[channel] = np.zeros((ncomponents, npoints), np.float)
+                pdos_kind[channel] = np.zeros((ncomponents, npoints), float)
             for iatom in info["iatom"]:
                 pdos_atom = {}
                 for istate, l in info["istate"].items():
@@ -158,7 +158,7 @@ class DOS:
                     channel = "{0}{1}".format(istate, orbitals[l[0]])
                     pdosinp = np.genfromtxt(filename)
                     ncomponents = (2 * l[0] + 2) * self.nspins
-                    pdos_atom[channel] = np.zeros((ncomponents, npoints), np.float)
+                    pdos_atom[channel] = np.zeros((ncomponents, npoints), float)
                     for j in range(ncomponents):
                         pdos_atom[channel][j] += pdosinp[:, j + 1]
                         # sum over kind
@@ -214,7 +214,7 @@ class DOS:
                 nkpts = int(lines[j - 3].split()[1])
                 nbands = int(lines[j - 3].split()[2])
                 print(nstates, nkpts, nbands)
-                proj = np.zeros((nstates, nkpts, nbands), np.float)
+                proj = np.zeros((nstates, nkpts, nbands), float)
                 proj_kinds = {}
                 for istate in range(nstates):
                     iline = j + istate * (nkpts * nbands + 1) - 1
@@ -223,7 +223,7 @@ class DOS:
                     channel = kinds + orbital
                     if channel not in channels:
                         channels.append(channel)
-                        proj_kinds[channel] = np.zeros((nkpts, nbands), np.float)
+                        proj_kinds[channel] = np.zeros((nkpts, nbands), float)
                     # l = lines[iline].split()[2]
                     # print(kinds, istate)
                     for ikpt in range(nkpts):
