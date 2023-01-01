@@ -42,7 +42,7 @@ nscf.run()
 # ===============================================================
 # dos
 dos = EspressoDos(
-    parent_directory="calculations/scf/co",
+    parent_directory="scf/co",
     prefix=calc.prefix,
     Emin=fe - 30,
     Emax=fe + 30,
@@ -51,19 +51,17 @@ dos = EspressoDos(
 dos.run()
 #
 # DOS analysis
-dos = DOS(label="calculations/scf/co", prefix="co")
+dos = DOS(label="scf/co", prefix="co")
 dos.read_dos()
 dos.plot_dos(Emin=-10, Emax=10, smearing=[0.02, 0.01])
 plt.savefig("images/co-dos.png")
 
 # ===========================================
 # pdos
-projwfc = EspressoProjwfc(
-    parent_directory="calculations/scf/co", prefix="co", DeltaE=0.01
-)
+projwfc = EspressoProjwfc(parent_directory="scf/co", prefix="co", DeltaE=0.01)
 projwfc.run()
 # PDOS analysis
-dos = DOS(label="calculations/scf/co", prefix="co")
+dos = DOS(label="scf/co", prefix="co")
 dos.read_pdos()
 dos.plot_pdos(Emin=-10, Emax=10, smearing=[0.02, 0.01], legend=True)
 plt.savefig("images/co-pdos.png")
