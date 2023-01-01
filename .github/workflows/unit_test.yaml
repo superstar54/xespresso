@@ -2,16 +2,15 @@ name: Unit Test
 
 on: [push]
 
-env:
-  TEST_IMAGE_NAME: superstar54/ase:ubuntu20.04
-
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
-    container:
-      image: superstar54/ase:ubuntu20.04
+    strategy:
+      matrix:
+        container:
+          image: ["superstar54/ase:ubuntu20.04", "superstar54/ase-dev:ubuntu20.04"]
 
     steps:
       - uses: actions/checkout@v3
