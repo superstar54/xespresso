@@ -13,6 +13,7 @@ from ase.io.espresso import (
     grep_valence,
     SSSP_VALENCE,
     read_fortran_namelist,
+    ibrav_error_message,
 )
 
 
@@ -75,8 +76,6 @@ def write_espresso_in(
 
 def build_section_str(atoms, species_info, input_data, input_parameters):
     """ """
-    from ase.io.espresso import cell_to_ibrav, ibrav_to_cell
-
     # Add computed parameters
     # different magnetisms means different types
     input_parameters["system"]["ntyp"] = len(species_info)
@@ -97,14 +96,7 @@ def build_section_str(atoms, species_info, input_data, input_parameters):
     if "ibrav" in input_parameters["system"]:
         ibrav = input_parameters["system"]["ibrav"]
         if ibrav != 0:
-            celldm = cell_to_ibrav(atoms.cell, ibrav)
-            regen_cell = ibrav_to_cell(celldm)[1]
-            if not np.allclose(atoms.cell, regen_cell):
-                warnings.warn(
-                    "Input cell does not match requested ibrav"
-                    "{} != {}".format(regen_cell, atoms.cell)
-                )
-            input_parameters["system"].update(celldm)
+            raise ValueError(ibrav_error_message)
     else:
         # Just use standard cell block
         input_parameters["system"]["ibrav"] = 0
