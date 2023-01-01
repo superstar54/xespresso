@@ -3,7 +3,7 @@ name: Unit Test
 on: [push]
 
 env:
-  TEST_IMAGE_NAME: superstar54/ase:ubuntu20.04
+  TEST_IMAGE_NAME: superstar54/ase-dev:ubuntu20.04
 
 jobs:
   build:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: superstar54/ase:ubuntu20.04
+      image: superstar54/ase-dev:ubuntu20.04
 
     steps:
       - uses: actions/checkout@v3
