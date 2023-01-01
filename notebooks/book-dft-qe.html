@@ -9129,15 +9129,15 @@ label {
 }
 /* Flexible box model classes */
 /* Taken from Alex Russell http://infrequently.org/2009/08/css-3-progress/ */
-/* This file is a compatability layer.  It allows the usage of flexible box 
+/* This file is a compatability layer.  It allows the usage of flexible box
 model layouts accross multiple browsers, including older browsers.  The newest,
 universal implementation of the flexible box model is used when available (see
-`Modern browsers` comments below).  Browsers that are known to implement this 
+`Modern browsers` comments below).  Browsers that are known to implement this
 new spec completely include:
 
     Firefox 28.0+
     Chrome 29.0+
-    Internet Explorer 11+ 
+    Internet Explorer 11+
     Opera 17.0+
 
 Browsers not listed, including Safari, are supported via the styling under the
@@ -12519,7 +12519,7 @@ div#pager .ui-resizable-handle {
   background: #f7f7f7;
   border-top: 1px solid #cfcfcf;
   border-bottom: 1px solid #cfcfcf;
-  /* This injects handle bars (a short, wide = symbol) for 
+  /* This injects handle bars (a short, wide = symbol) for
         the resize handle. */
 }
 div#pager .ui-resizable-handle::after {
@@ -13033,14 +13033,14 @@ div#notebook {
   div.cell {
     display: block;
     page-break-inside: avoid;
-  } 
-  div.output_wrapper { 
-    display: block;
-    page-break-inside: avoid; 
   }
-  div.output { 
+  div.output_wrapper {
     display: block;
-    page-break-inside: avoid; 
+    page-break-inside: avoid;
+  }
+  div.output {
+    display: block;
+    page-break-inside: avoid;
   }
 }
 </style>
@@ -13262,7 +13262,7 @@ div#notebook {
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>Energy = -606.967 eV
-Forces: 
+Forces:
  [[ 4.13462056  0.          0.        ]
  [-4.13462056  0.          0.        ]]
 </pre>
@@ -15941,7 +15941,7 @@ sbatch .job_file
 
 <div class="output_subarea output_stream output_stdout output_text">
 <pre>Energy = -1145.201 eV
-Forces: 
+Forces:
  [[0. 0. 0.]
  [0. 0. 0.]
  [0. 0. 0.]
@@ -16751,7 +16751,7 @@ sbatch .job_file
 <span class="s1">&#39;Fe1&#39;</span><span class="p">:</span> <span class="s1">&#39;Fe.pbe-spn-rrkjus_psl.1.0.0.UPF&#39;</span><span class="p">,</span>
 <span class="p">}</span>
 <span class="n">queue</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ntasks&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;account&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;partition&#39;</span><span class="p">:</span> <span class="s1">&#39;debug&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="s1">&#39;00:10:00&#39;</span><span class="p">}</span>
-<span class="n">calc</span> <span class="o">=</span> <span class="n">Espresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span> 
+<span class="n">calc</span> <span class="o">=</span> <span class="n">Espresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span>
                 <span class="n">label</span>  <span class="o">=</span> <span class="s1">&#39;bulk/fe-afm/fe-afm&#39;</span><span class="p">,</span>
                 <span class="n">input_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="p">,</span>
                 <span class="n">kpts</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
@@ -22672,7 +22672,7 @@ final         -326.612
 <span class="s1">&#39;path_thr&#39;</span><span class="p">:</span> <span class="mf">0.1E0</span><span class="p">,</span>
 <span class="p">}</span>
 <span class="n">queue</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;ntasks-per-node&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;account&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;partition&#39;</span><span class="p">:</span> <span class="s1">&#39;debug&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="s1">&#39;00:10:00&#39;</span><span class="p">}</span>
-<span class="n">calc</span> <span class="o">=</span> <span class="n">NEBEspresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span> 
+<span class="n">calc</span> <span class="o">=</span> <span class="n">NEBEspresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span>
                  <span class="n">label</span>  <span class="o">=</span> <span class="s1">&#39;molecule/neb/nh3/images&#39;</span><span class="p">,</span>
                  <span class="n">package</span> <span class="o">=</span> <span class="s1">&#39;neb&#39;</span><span class="p">,</span>
                  <span class="n">queue</span> <span class="o">=</span> <span class="n">queue</span><span class="p">,</span>
@@ -27986,7 +27986,7 @@ Final energy  -851.142
 <div class="prompt input_prompt">In&nbsp;[35]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
+<div class=" highlight hl-ipython3"><pre><span></span>
 </pre></div>
 
     </div>
@@ -28015,7 +28015,7 @@ Final energy  -851.142
 <span class="s1">&#39;path_thr&#39;</span><span class="p">:</span> <span class="mf">0.1E0</span><span class="p">,</span>
 <span class="p">}</span>
 <span class="n">queue</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;ntasks-per-node&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;account&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;partition&#39;</span><span class="p">:</span> <span class="s1">&#39;debug&#39;</span><span class="p">,</span> <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="s1">&#39;00:10:00&#39;</span><span class="p">}</span>
-<span class="n">calc</span> <span class="o">=</span> <span class="n">NEBEspresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span> 
+<span class="n">calc</span> <span class="o">=</span> <span class="n">NEBEspresso</span><span class="p">(</span><span class="n">pseudopotentials</span> <span class="o">=</span> <span class="n">pseudopotentials</span><span class="p">,</span>
                  <span class="n">label</span>  <span class="o">=</span> <span class="s1">&#39;surface/neb/al-o/images&#39;</span><span class="p">,</span>
                  <span class="n">package</span> <span class="o">=</span> <span class="s1">&#39;neb&#39;</span><span class="p">,</span>
                  <span class="n">queue</span> <span class="o">=</span> <span class="n">queue</span><span class="p">,</span>
@@ -28188,7 +28188,7 @@ Final energy  -851.142
   </div>
 </body>
 
- 
+
 
 
 </html>

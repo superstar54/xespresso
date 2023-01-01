@@ -47,7 +47,7 @@ Functional:  SLA  PW   PBX  PBC
 </PP_INPUTFILE>
   </PP_INFO>
   <!--
- END OF HUMAN READABLE SECTION 
+ END OF HUMAN READABLE SECTION
 -->
   <PP_HEADER generated="Generated using &quot;atomic&quot; code by A. Dal Corso  v.6.3MaX" author="Lorenzo Paulatto" date=" 3Sep2018" comment="" element=" H" pseudo_type="PAW" relativistic="scalar" is_ultrasoft="true" is_paw="true" is_coulomb="false" has_so="false" has_wfc="true" has_gipaw="true" paw_as_gipaw="true" core_correction="false" functional=" SLA  PW   PBX  PBC" z_valence="1.000000000000e0" total_psenergy="-9.178837383561e-1" wfc_cutoff="4.565576003474e1" rho_cutoff="2.209107022339e2" l_max="0" l_max_rho="0" l_local="1" mesh_size="929" number_of_wfc="1" number_of_proj="2"/>
   <PP_MESH dx="1.250000000000e-2" mesh="929" xmin="-7.000000000000e0" rmax="1.000000000000e2" zmesh="1.000000000000e0">

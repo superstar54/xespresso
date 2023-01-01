@@ -127,5 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+examples/calculations/*
+examples/images/*
 tests/calculations/*
 tests/images/*

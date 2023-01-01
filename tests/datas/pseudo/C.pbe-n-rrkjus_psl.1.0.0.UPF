@@ -54,7 +54,7 @@ Functional: PBE
 </PP_INPUTFILE>
   </PP_INFO>
   <!--
- END OF HUMAN READABLE SECTION 
+ END OF HUMAN READABLE SECTION
 -->
   <PP_HEADER generated="Generated using &quot;atomic&quot; code by A. Dal Corso  v.6.3MaX" author="ADC" date=" 4Sep2018" comment="" element=" C" pseudo_type="USPP" relativistic="scalar" is_ultrasoft="true" is_paw="false" is_coulomb="false" has_so="false" has_wfc="false" has_gipaw="true" paw_as_gipaw="false" core_correction="true" functional="PBE" z_valence="4.000000000000e0" total_psenergy="-1.175015840410e1" wfc_cutoff="4.018676662830e1" rho_cutoff="3.262605925982e2" l_max="1" l_max_rho="2" l_local="-1" mesh_size="1073" number_of_wfc="2" number_of_proj="4"/>
   <PP_MESH dx="1.250000000000e-2" mesh="1073" xmin="-7.000000000000e0" rmax="1.000000000000e2" zmesh="6.000000000000e0">

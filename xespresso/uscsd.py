@@ -23,11 +23,12 @@ def update_UVscsd(U_dict, Hubbard_site):
 
     Returns:
         - U: dict
-            A copy of U_dict in which the new_label is modified according on the U values 
+            A copy of U_dict in which the new_label is modified according on the U values
     """
 
     U = copy.deepcopy(U_dict)
     import string as STR
+
     alphabet = list(STR.ascii_lowercase)
 
     new_labels = []
@@ -39,21 +40,21 @@ def update_UVscsd(U_dict, Hubbard_site):
     count_sites_spinm1 = []
     for site, info in U.items():
         if info["spin"] == "1":
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
                 count = int(count)
             count_sites_spin1.append(count)
         elif info["spin"] == "-1":
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
                 count = int(count)
             count_sites_spinm1.append(count)
         elif info["spin"] == "0":
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
@@ -70,7 +71,7 @@ def update_UVscsd(U_dict, Hubbard_site):
     new_labels = []
     for site, info in U.items():
         if info["spin"] == "1":
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
@@ -79,7 +80,7 @@ def update_UVscsd(U_dict, Hubbard_site):
             info["new_new_labels"] = count
 
         elif info["spin"] == "-1":
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
@@ -89,7 +90,7 @@ def update_UVscsd(U_dict, Hubbard_site):
             info["new_new_labels"] = new_count
 
         else:
-            count = info["new_label"][len(Hubbard_site):]
+            count = info["new_label"][len(Hubbard_site) :]
             if count == "":
                 count = 1
             else:
@@ -106,7 +107,7 @@ def update_UVscsd(U_dict, Hubbard_site):
         sys.exit("I can differentiate maximum 26 sites")
 
     for n, i in enumerate(new_labels):
-        indeces[i] = n+1
+        indeces[i] = n + 1
     # print(indeces)
 
     for site, info in U.items():
@@ -138,7 +139,7 @@ def update_Hubbard_parameters(U_dict, pseudopotentials, Hubbard_site, atoms):
         An ase structure object
 
     Returns:
-        - dict with the updated structure, pseudopotentials, and input_ntyp dictionary  
+        - dict with the updated structure, pseudopotentials, and input_ntyp dictionary
     """
     Hubbard_U = dict()
     starting_magnetization = dict()
@@ -160,26 +161,47 @@ def update_Hubbard_parameters(U_dict, pseudopotentials, Hubbard_site, atoms):
     for site in Hubbard_U.keys():
         pseudopotentials[site] = pseudo_name
 
-    atoms.new_array('species', np.array(
-        atoms.get_chemical_symbols(), dtype='U20'))
+    atoms.new_array("species", np.array(atoms.get_chemical_symbols(), dtype="U20"))
 
     for site, info in U_dict.items():
-        atoms.arrays['species'][int(site)-1] = info["new_label"]
+        atoms.arrays["species"][int(site) - 1] = info["new_label"]
 
-    return {"Hubbard_U": Hubbard_U,
-            "starting_magnetization": starting_magnetization,
-            "pseudopotentials": pseudopotentials,
-            "atoms": atoms}
+    return {
+        "Hubbard_U": Hubbard_U,
+        "starting_magnetization": starting_magnetization,
+        "pseudopotentials": pseudopotentials,
+        "atoms": atoms,
+    }
 
 
-class Uscsd():
-    def __init__(self, restart=None, ignore_bad_restart_file=False,
-                 label='xespresso', atoms=None, package='pw', parallel='',
-                 queue=None, queue_hp=False, parallel_hp='', max_iter=1, iteration=1, sc_type=None,
-                 insulator=None, magnetic=None, nbnd=None, relax_type="vc-relax",
-                 parallelization_hp=False, step=None, Hubbard_site=None, conv_Uscsd=0.01,
-                 ethr_relax=None, ethr_scf=None, ethr_scf2=None,
-                 **kwargs):
+class Uscsd:
+    def __init__(
+        self,
+        restart=None,
+        ignore_bad_restart_file=False,
+        label="xespresso",
+        atoms=None,
+        package="pw",
+        parallel="",
+        queue=None,
+        queue_hp=False,
+        parallel_hp="",
+        max_iter=1,
+        iteration=1,
+        sc_type=None,
+        insulator=None,
+        magnetic=None,
+        nbnd=None,
+        relax_type="vc-relax",
+        parallelization_hp=False,
+        step=None,
+        Hubbard_site=None,
+        conv_Uscsd=0.01,
+        ethr_relax=None,
+        ethr_scf=None,
+        ethr_scf2=None,
+        **kwargs
+    ):
         """
         This class allows to automate the self-consistent (site-dependent) calculation of U/V values
         Automating the necessary relax-scf-hp procedure. In particular, one iteration requires:
@@ -197,11 +219,11 @@ class Uscsd():
             - For a magnetic insulator:
                 1) relaxation (optional)
                 2) scf calculation with "smaering"(on the optimized structure if step 1) is performed)
-                3) scf calculation with "fixed" reading the total_magnetization and the number of bands 
+                3) scf calculation with "fixed" reading the total_magnetization and the number of bands
                    from step 1
                 4) hp calculation
 
-        When the U/V values are obtained, the subsequent iteration is run using the new U/V values and eventually 
+        When the U/V values are obtained, the subsequent iteration is run using the new U/V values and eventually
         the structure optimized in step 1) until a maximum numer of iterations (max_iter) is performed or until
         U/V convergence is reached.
 
@@ -209,13 +231,13 @@ class Uscsd():
         you need to provide values for "insulator", "magnetic", "nbnd".
 
         The class is able to restart an interrupted self-consistent calculation of U/V if for one iteration
-        only the "relax" or "scf" step perfomed. 
+        only the "relax" or "scf" step perfomed.
         WARNING: restart from an incomplete "relax" step is not yet possible.
 
 
         Check:
-        - "Hubbard parameters from density-functional perturbation theory", 
-        Phys. Rev. B 98, 085127 (2018); arXiv:1805.01805 using ase and XEspresso, 
+        - "Hubbard parameters from density-functional perturbation theory",
+        Phys. Rev. B 98, 085127 (2018); arXiv:1805.01805 using ase and XEspresso,
         of which pXEspresso is a subclass.
         - C. Ricca, I. Timrov, M. Cococcioni, N. Marzari, and U. Aschauer,
           "Self-consistent site-dependent DFT+U study of stoichiometric and defective SrMnO3",
@@ -271,7 +293,8 @@ class Uscsd():
 
         if self.relax_type != None and self.relax_type not in ["relax", "vc-relax"]:
             sys.exit(
-                "Please provide a str for the relax_type variable: relax or vc-relax")
+                "Please provide a str for the relax_type variable: relax or vc-relax"
+            )
         if self.sc_type != None and self.sc_type not in ["relax", "scf"]:
             sys.exit("Please provide a bool for the sc_type variable: relax or scf")
 
@@ -284,7 +307,8 @@ class Uscsd():
 
         if self.magnetic != None and self.magnetic not in [1, 2]:
             sys.exit(
-                "Please provide an int for the magnetic  variable: 1 for spin unpolirzed and 2 for spin poolariz")
+                "Please provide an int for the magnetic  variable: 1 for spin unpolirzed and 2 for spin poolariz"
+            )
 
         if self.nbnd != None and type(self.nbnd) != int:
             sys.exit("Please provide an int for the nbnd variable")
@@ -316,15 +340,14 @@ class Uscsd():
         old_U = []
         new_U = []
 
-        for site, info in self.UVscsd[self.iteration-1].items():
+        for site, info in self.UVscsd[self.iteration - 1].items():
             old_U.append(float(info["U"]))
 
         for site, info in self.UVscsd[self.iteration].items():
             new_U.append(float(info["U"]))
 
-        #comparison = np.isclose(np.array(old_U),np.array(new_U),conv_Uscsd)
-        self.converged = np.allclose(
-            np.array(old_U), np.array(new_U), self.conv_Uscsd)
+        # comparison = np.isclose(np.array(old_U),np.array(new_U),conv_Uscsd)
+        self.converged = np.allclose(np.array(old_U), np.array(new_U), self.conv_Uscsd)
 
     def check_iteration(self):
         """
@@ -339,8 +362,11 @@ class Uscsd():
 
         """
 
-        folders = [name for name in os.listdir(self.directory) if os.path.isdir(
-            os.path.join(self.directory, name))]
+        folders = [
+            name
+            for name in os.listdir(self.directory)
+            if os.path.isdir(os.path.join(self.directory, name))
+        ]
         for folder_path in folders:
             # Check is empty..
             if len(os.listdir(os.path.join(self.directory, folder_path))) == 0:
@@ -359,7 +385,7 @@ class Uscsd():
         if not folders:
             dirs = []
         else:
-            dirs = [int(name.split('_')[1]) for name in Folders]
+            dirs = [int(name.split("_")[1]) for name in Folders]
 
         if not dirs:
             self.iteration = 1
@@ -367,14 +393,22 @@ class Uscsd():
         else:
             self.iteration = max(dirs)
 
-            if os.path.exists(os.path.join(self.directory, "hp_"+str(self.iteration))):
+            if os.path.exists(
+                os.path.join(self.directory, "hp_" + str(self.iteration))
+            ):
                 self.step = "hp"
-            elif os.path.exists(os.path.join(self.directory, "scf_"+str(self.iteration))):
+            elif os.path.exists(
+                os.path.join(self.directory, "scf_" + str(self.iteration))
+            ):
                 self.step = "scf"
-                print("""WARNING: For magnetic insulators, restart of the second scf step with 'fixed'
+                print(
+                    """WARNING: For magnetic insulators, restart of the second scf step with 'fixed'
                 from the previous scf step with 'smearing' is not yet implemented. In this case, the
-                hp step will fail if you do not remove also the scf_$iteration folder.""")
-            elif os.path.exists(os.path.join(self.directory, "relax_"+str(self.iteration))):
+                hp step will fail if you do not remove also the scf_$iteration folder."""
+                )
+            elif os.path.exists(
+                os.path.join(self.directory, "relax_" + str(self.iteration))
+            ):
                 self.step = "relax"
             else:
                 self.step = "re-start"
@@ -394,30 +428,32 @@ class Uscsd():
         print("Initial Iteration:", self.iteration, self.step)
         print("-------------------------------------------")
 
-        calc = HpXEspresso(label=self.label_ref,
-                           parallel=self.parallel,
-                           parallel_hp=self.parallel_hp,
-                           queue=self.queue,
-                           queue_hp=self.queue_hp,
-                           max_iter=self.max_iter,
-                           iteration=self.iteration,
-                           sc_type=self.sc_type,
-                           relax_type=self.relax_type,
-                           insulator=self.insulator,
-                           magnetic=self.magnetic,
-                           nbnd=self.nbnd,
-                           parallelization_hp=self.parallelization_hp,
-                           step=self.step,
-                           ethr_relax=self.ethr_relax,
-                           ethr_scf=self.ethr_scf,
-                           ethr_scf2=self.ethr_scf2,
-                           **self.kwargs)
+        calc = HpXEspresso(
+            label=self.label_ref,
+            parallel=self.parallel,
+            parallel_hp=self.parallel_hp,
+            queue=self.queue,
+            queue_hp=self.queue_hp,
+            max_iter=self.max_iter,
+            iteration=self.iteration,
+            sc_type=self.sc_type,
+            relax_type=self.relax_type,
+            insulator=self.insulator,
+            magnetic=self.magnetic,
+            nbnd=self.nbnd,
+            parallelization_hp=self.parallelization_hp,
+            step=self.step,
+            ethr_relax=self.ethr_relax,
+            ethr_scf=self.ethr_scf,
+            ethr_scf2=self.ethr_scf2,
+            **self.kwargs
+        )
 
         if self.iteration > 1:
-            U = calc.read_Hubbard_parameters(self.iteration-1)
-            self.UVscsd[self.iteration-1] = U
+            U = calc.read_Hubbard_parameters(self.iteration - 1)
+            self.UVscsd[self.iteration - 1] = U
 
-            if self.step == 'hp':
+            if self.step == "hp":
                 U = calc.read_Hubbard_parameters(self.iteration)
                 self.UVscsd[self.iteration] = U
                 self.converged_U()
@@ -425,10 +461,12 @@ class Uscsd():
                 if self.converged == True:
                     if self.sc_type == "relax":
                         directory = os.path.join(
-                            self.directory_ref, "relax_"+str(self.iteration))
+                            self.directory_ref, "relax_" + str(self.iteration)
+                        )
                     else:
                         directory = os.path.join(
-                            self.directory_ref, "scf_"+str(self.iteration))
+                            self.directory_ref, "scf_" + str(self.iteration)
+                        )
                     calc.read_results_fromdirectory(directory)
                     self.etot[self.iteration] = calc.get_potential_energy()
                     self.opt_structures[self.iteration] = calc.atoms
@@ -436,11 +474,14 @@ class Uscsd():
 
             new_U = update_UVscsd(U, self.Hubbard_site)
             new_data = update_Hubbard_parameters(
-                new_U, self.kwargs['pseudopotentials'], self.Hubbard_site, self.atoms)
+                new_U, self.kwargs["pseudopotentials"], self.Hubbard_site, self.atoms
+            )
             self.atoms = new_data["atoms"]
-            self.kwargs['pseudopotentials'] = new_data['pseudopotentials']
-            self.kwargs['input_data']['input_ntyp']['Hubbard_U'] = new_data['Hubbard_U']
-            self.kwargs['input_data']['input_ntyp']['starting_magnetization'] = new_data['starting_magnetization']
+            self.kwargs["pseudopotentials"] = new_data["pseudopotentials"]
+            self.kwargs["input_data"]["input_ntyp"]["Hubbard_U"] = new_data["Hubbard_U"]
+            self.kwargs["input_data"]["input_ntyp"][
+                "starting_magnetization"
+            ] = new_data["starting_magnetization"]
         else:
             pass
 
@@ -468,8 +509,7 @@ class Uscsd():
             calc.read_results()
             if self.sc_type == "scf":
                 self.etot[self.iteration] = e_scf
-                self.opt_structures[self.iteration] = calc.get_potential_energy(
-                )
+                self.opt_structures[self.iteration] = calc.get_potential_energy()
 
             print("- Running second scf step")
             calc.run_scf2()
@@ -517,10 +557,12 @@ class Uscsd():
             else:
                 if self.sc_type == "relax":
                     old_directory = os.path.join(
-                        self.directory_ref, "relax_"+str(self.iteration))
+                        self.directory_ref, "relax_" + str(self.iteration)
+                    )
                 else:
                     old_directory = os.path.join(
-                        self.directory_ref, "scf_"+str(self.iteration))
+                        self.directory_ref, "scf_" + str(self.iteration)
+                    )
                 calc.read_results_fromdirectory(old_directory)
                 self.etot[self.iteration] = calc.get_potential_energy()
                 self.opt_structures[self.iteration] = calc.atoms
@@ -532,10 +574,12 @@ class Uscsd():
         elif self.step == "hp":
             if self.sc_type == "relax":
                 old_directory = os.path.join(
-                    self.directory_ref, "relax_"+str(self.iteration))
+                    self.directory_ref, "relax_" + str(self.iteration)
+                )
             else:
                 old_directory = os.path.join(
-                    self.directory_ref, "scf_"+str(self.iteration))
+                    self.directory_ref, "scf_" + str(self.iteration)
+                )
             calc.read_results_fromdirectory(old_directory)
             self.etot[self.iteration] = calc.get_potential_energy()
             self.opt_structures[self.iteration] = calc.atoms
@@ -556,34 +600,39 @@ class Uscsd():
 
         new_U = update_UVscsd(U, self.Hubbard_site)
         new_data = update_Hubbard_parameters(
-            new_U, self.kwargs['pseudopotentials'], self.Hubbard_site, atoms_iter)
+            new_U, self.kwargs["pseudopotentials"], self.Hubbard_site, atoms_iter
+        )
         atoms_iter = new_data["atoms"]
-        self.kwargs['pseudopotentials'] = new_data['pseudopotentials']
-        self.kwargs['input_data']['input_ntyp']['Hubbard_U'] = new_data['Hubbard_U']
-        self.kwargs['input_data']['input_ntyp']['starting_magnetization'] = new_data['starting_magnetization']
+        self.kwargs["pseudopotentials"] = new_data["pseudopotentials"]
+        self.kwargs["input_data"]["input_ntyp"]["Hubbard_U"] = new_data["Hubbard_U"]
+        self.kwargs["input_data"]["input_ntyp"]["starting_magnetization"] = new_data[
+            "starting_magnetization"
+        ]
 
         while self.converged == False and self.iteration <= self.max_iter:
             print("-------------------------------------------")
             print("Iteration:", self.iteration, self.step)
             print("-------------------------------------------")
-            calc = HpXEspresso(label=self.label_ref,
-                               parallel=self.parallel,
-                               parallel_hp=self.parallel_hp,
-                               queue=self.queue,
-                               queue_hp=self.queue_hp,
-                               max_iter=self.max_iter,
-                               iteration=self.iteration,
-                               sc_type=self.sc_type,
-                               relax_type=self.relax_type,
-                               insulator=self.insulator,
-                               magnetic=self.magnetic,
-                               nbnd=self.nbnd,
-                               parallelization_hp=self.parallelization_hp,
-                               step=self.step,
-                               ethr_relax=self.ethr_relax,
-                               ethr_scf=self.ethr_scf,
-                               ethr_scf2=self.ethr_scf2,
-                               **self.kwargs)
+            calc = HpXEspresso(
+                label=self.label_ref,
+                parallel=self.parallel,
+                parallel_hp=self.parallel_hp,
+                queue=self.queue,
+                queue_hp=self.queue_hp,
+                max_iter=self.max_iter,
+                iteration=self.iteration,
+                sc_type=self.sc_type,
+                relax_type=self.relax_type,
+                insulator=self.insulator,
+                magnetic=self.magnetic,
+                nbnd=self.nbnd,
+                parallelization_hp=self.parallelization_hp,
+                step=self.step,
+                ethr_relax=self.ethr_relax,
+                ethr_scf=self.ethr_scf,
+                ethr_scf2=self.ethr_scf2,
+                **self.kwargs
+            )
 
             if self.sc_type == "relax":
                 print("- Running relaxation step")
@@ -597,11 +646,11 @@ class Uscsd():
             else:
                 atoms_iter = self.atoms
                 atoms_iter.calc = calc
-                atoms_iter.new_array('species', np.array(
-                    atoms_iter.get_chemical_symbols(), dtype='U20'))
+                atoms_iter.new_array(
+                    "species", np.array(atoms_iter.get_chemical_symbols(), dtype="U20")
+                )
                 for site, info in new_U.items():
-                    atoms_iter.arrays['species'][int(
-                        site)-1] = info["new_label"]
+                    atoms_iter.arrays["species"][int(site) - 1] = info["new_label"]
 
             print("- Running (first) scf step")
             calc.run_scf()
@@ -638,11 +687,12 @@ class Uscsd():
             self.step = "re-start"
 
             new_U = update_UVscsd(U, self.Hubbard_site)
-            new_data = update_Hubbard_parameters(new_U,
-                                                 self.kwargs['pseudopotentials'],
-                                                 self.Hubbard_site,
-                                                 atoms_iter)
+            new_data = update_Hubbard_parameters(
+                new_U, self.kwargs["pseudopotentials"], self.Hubbard_site, atoms_iter
+            )
             atoms_iter = new_data["atoms"]
-            self.kwargs['pseudopotentials'] = new_data['pseudopotentials']
-            self.kwargs['input_data']['input_ntyp']['Hubbard_U'] = new_data['Hubbard_U']
-            self.kwargs['input_data']['input_ntyp']['starting_magnetization'] = new_data['starting_magnetization']
+            self.kwargs["pseudopotentials"] = new_data["pseudopotentials"]
+            self.kwargs["input_data"]["input_ntyp"]["Hubbard_U"] = new_data["Hubbard_U"]
+            self.kwargs["input_data"]["input_ntyp"][
+                "starting_magnetization"
+            ] = new_data["starting_magnetization"]
