@@ -1,3 +1,7 @@
+"""
+adapted from https://gitlab.com/ase/ase/-/blob/master/ase/io/espresso.py
+"""
+
 import os
 from os import path
 import pickle
@@ -13,7 +17,14 @@ from ase.io.espresso import (
     grep_valence,
     SSSP_VALENCE,
     read_fortran_namelist,
-    ibrav_error_message,
+)
+
+# ibrav error message
+ibrav_error_message = (
+    "ASE does not support ibrav != 0. Note that with ibrav "
+    "== 0, Quantum ESPRESSO will still detect the symmetries "
+    "of your system because the CELL_PARAMETERS are defined "
+    "to a high level of precision."
 )
 
 
