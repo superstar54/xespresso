@@ -3,17 +3,27 @@
 ===========================================
 pw
 ===========================================
+The :class:`~xespresso.xespresso.Espresso` object is used to perform a PW calculation.
 
-A example of pw calculation.
+
+A example of PW calculation of H2 molecule. One need to define the following inputs:
+
+- ASE Atoms.
+- kpoints.
+- pseudopotentials.
+- input_data.
+- queue.
 
 .. code-block:: python
 
     from ase.build import molecule
     from xespresso import Espresso
 
+    # define H2 molecule
     h2 = molecule("H2")
     h2.cell = [8, 8, 8]
     h2.pbc = [True, True, True]
+    # set pseudo-potential
     pseudopotentials = {
         "H": "H.pbe-rrkjus_psl.1.0.0.UPF",
     }
@@ -23,7 +33,7 @@ A example of pw calculation.
         ecutwfc=20,
         occupations="smearing",
         degauss=0.03,
-        kpts=(1, 1, 1),
+        kpts=(1, 1, 1), # kpoints
         debug=True,
     )
     h2.calc = calc
