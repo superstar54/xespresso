@@ -13,8 +13,10 @@ class PostCalculation:
     package_parameters = {}
 
     def __init__(
-        self, parent_directory, prefix, queue=False, parallel="", **kwargs
+        self, parent_directory, prefix, queue=False, parallel="", debug=False, **kwargs
     ) -> None:
+        if debug:
+            logger.setLevel(debug)
         self.parent_directory = parent_directory
         self.prefix = prefix
         self.queue = queue
@@ -27,9 +29,7 @@ class PostCalculation:
         self.state_info = None
 
     def set_label(self, label, prefix):
-        """
-        set directory and prefix from label
-        """
+        """Set directory and prefix from label"""
         self.directory = label
         if not prefix:
             self.prefix = os.path.split(label)[1]
@@ -46,9 +46,7 @@ class PostCalculation:
         logger.debug("Prefix: %s" % (self.prefix))
 
     def run(self):
-        """
-        todo:
-        """
+        """todo:"""
         from xespresso.scheduler import set_queue
 
         print("{0:=^60}".format(self.package))
@@ -100,11 +98,12 @@ class PostCalculation:
         filename = os.path.join(self.directory, "%s.%si" % (self.prefix, self.package))
         with open(filename, "w") as f:
             for section, parameters in self.package_parameters.items():
-                # logger.debug(section)
+                logger.debug(f"section: {section}")
                 if section != "LINE":
                     f.write("&%s\n" % section)
                     for key, value in self.parameters.items():
                         if key in parameters:
+                            logger.debug(f"key: {key}")
                             if isinstance(value, dict):
                                 for subkey, subvalue in value.items():
                                     if isinstance(subvalue, str):

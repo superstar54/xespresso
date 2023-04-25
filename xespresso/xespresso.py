@@ -572,7 +572,11 @@ class Espresso(FileIOCalculator):
         return ax
 
     def get_work_function(
-        self, ax=None, inpfile="potential.cube", output=None, shift=False
+        self,
+        ax=None,
+        inpfile="potential.cube",
+        output=None,
+        shift=False,
     ):
         import matplotlib.pyplot as plt
         from ase.io.cube import read_cube_data
@@ -584,7 +588,7 @@ class Espresso(FileIOCalculator):
             ax = plt.gca()
         units = create_units("2006")
         #
-        filename = os.path.join(self.directory, inpfile)
+        filename = os.path.join(self.directory, "pp", inpfile)
         data, atoms = read_cube_data(filename)
         data = data * units["Ry"]
         ef = self.get_fermi_level()
@@ -611,6 +615,7 @@ class Espresso(FileIOCalculator):
         wf = np.average(axy[ind]) - ef
         print("min: %s, max: %s" % (pos, pos + 3))
         print("The workfunction is {0:1.2f} eV".format(wf))
+        return wf
 
     def get_bader_charge(self, inpfile=None):
         """ """
@@ -621,7 +626,9 @@ class Espresso(FileIOCalculator):
         command = "bader %s" % inpfile
         print(command)
         try:
-            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
+            proc = subprocess.Popen(
+                command, shell=True, cwd=os.path.join(self.directory, "pp")
+            )
         except OSError as err:
             msg = 'Failed to execute "{}"'.format(command)
             raise EnvironmentError(msg) from err

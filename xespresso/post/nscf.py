@@ -92,10 +92,22 @@ class EspressoNscf(FileIOCalculator):
     def state_info(self):
         from xespresso.utils import get_hash
 
-        chargeFile = os.path.join(
+        # get state information from charge-density file
+        # it could has two format ".dat", "hdf5"
+        # if charge-density.hdf5 does not exist, use charge-density.dat
+        charge_dat = os.path.join(
             self.scf_directory, "%s.save/charge-density.dat" % self.prefix
         )
-        state_info = get_hash(chargeFile)
+        charge_hdf5 = os.path.join(
+            self.scf_directory, "%s.save/charge-density.hdf5" % self.prefix
+        )
+        if os.path.isfile(charge_dat):
+            state_info = get_hash(charge_dat)
+        elif os.path.isfile(charge_hdf5):
+            state_info = get_hash(charge_hdf5)
+        else:
+            raise ValueError("No charge-density file found!")
+
         return state_info
 
     def check_state(

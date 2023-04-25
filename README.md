@@ -157,8 +157,15 @@ projwfc.run()
 
 #### Calculate work function
 ``` python
-calc.post(queue = queue, package = 'pp', plot_num = 11, fileout = 'potential.cube', iflag = 3, output_format=6)
-calc.get_work_function()
+from xespresso.post.pp import EspressoPp
+pp = EspressoPp(calc.directory, prefix = calc.prefix,
+                plot_num = 11,
+                fileout = 'potential.cube',
+                iflag = 3,
+                output_format=6,
+                debug = True,
+                )
+pp.get_work_function()
 ```
 
 #### Restart from previous calculation
