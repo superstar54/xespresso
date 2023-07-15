@@ -9,13 +9,14 @@ Welcome to XEspresso's documentation!
 Quantum ESPRESSO Calculator for Atomic Simulation Environment (ASE).
 
 
-Functions
+Features
 ------------
 
 * Support all QE packages, including: pw, band, neb, dos, projwfc, pp ...
 * Spin-polarized calculation
 * LD(S)A+U
 * Automatic submit job
+* Automatic check a new calculation required or not
 * Automatic set up "nscf" calculation
 * Read and plot dos, pdos and layer resolved pdos
 * Plot NEB

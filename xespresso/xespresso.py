@@ -62,6 +62,37 @@ _blocked_keywords = {}
 
 
 class Espresso(FileIOCalculator):
+    """
+    Accepts all the options for pw.x as given in the QE docs, plus some
+    additional options:
+
+    input_data, pseudopotentials, kspacing, kpts, koffset
+        Please have a look at Espresso module in ASE.
+        https://wiki.fysik.dtu.dk/ase/ase/calculators/espresso.html
+    queue: dict
+        A dictionary with parameters for job submission, e.g.
+
+        >>> queue = {'nodes': 4, 'ntasks-per-node': 20,
+        >>>         'account': 'xxx', 'partition': 'normal',
+        >>>         'time': '23:59:00'}
+    package: str
+        Choose the quantum espresso package: pw, dos, projwfc, band, pp, ph, ..
+        For NEB calculation, please use neb.NEBEspresso module.
+        Calculaiton use phonon is not implemented yet.
+    parallel: str
+        A str which control the parallelization parameters: -nimage, -npools,
+        -nband, -ntg, -ndiag or -northo (shorthands, respectively:
+        -ni, -nk, -nb, -nt, -nd).
+
+    Examples:
+
+    1. Perform a regular self-consistent calculation:
+
+    >>> calc = Espresso(input_data=input_data, ...)
+    >>> atoms.set_calculator(calc)
+    >>> atoms.get_potential_energy()
+    """
+
     implemented_properties = ["energy", "forces", "stress", "magmoms", "time"]
     command = "PACKAGE.x  PARALLEL  -in  PREFIX.PACKAGEi  >  PREFIX.PACKAGEo"
     discard_results_on_any_change = False
@@ -78,38 +109,7 @@ class Espresso(FileIOCalculator):
         pseudo_group=None,
         **kwargs
     ):
-        """
-        Accepts all the options for pw.x as given in the QE docs, plus some
-        additional options:
 
-        input_data, pseudopotentials, kspacing, kpts, koffset
-            Please have a look at Espresso module in ASE
-        queue: dict
-            A dictionary with parameters for job submission, e.g.
-             queue = {'nodes': 4, 'ntasks-per-node': 20,
-                      'account': 'xxx', 'partition': 'normal',
-                      'time': '23:59:00'}
-        package: str
-            Choose the quantum espresso package: pw, dos, projwfc, band, pp, ph, ..
-            For NEB calculation, please use neb.NEBEspresso module.
-            Calculaiton use phonon is not implemented yet.
-        parallel: str
-            A str which control the parallelization parameters: -nimage, -npools,
-            -nband, -ntg, -ndiag or -northo (shorthands, respectively:
-            -ni, -nk, -nb, -nt, -nd).
-
-        General working procedure is as follows:
-            1. Perform a regular self-consistent calculation:
-              >>> calc = Espresso(input_data=input_data, ...)
-              >>> atoms.set_calculator(calc)
-              >>> atoms.get_potential_energy()
-            2. post calculation can be made as follows:
-              >>> calc.post('package' = 'dos', **kwargs)
-              >>> calc.post('package' = 'pp', **kwargs)
-            3. non-self-consistent calculation can be made as follows:
-              >>> calc.nscf(calculation = 'nscf', kpts=(4, 4, 4))
-              >>> calc.nscf_calculate()
-        """
         print("{0:=^60}".format(package))
         if debug:
             logger.setLevel(debug)
@@ -138,11 +138,11 @@ class Espresso(FileIOCalculator):
 
         # self.discard_results_on_any_change = False
 
-    def find_pseudopotentials(self, pseudo_group):
-        """_summary_
+    def find_pseudopotentials(self, pseudo_group="SSSP_1.1.2_PBE_efficiency"):
+        """Get pseudo potential by family name.
 
         Args:
-            pseudo_group (_type_): _description_
+            pseudo_group (str): name of the pseudo family.
         """
         elements = set(self.atoms.get_chemical_symbols())
         pseudopotentials = {}
@@ -151,9 +151,7 @@ class Espresso(FileIOCalculator):
         return pseudopotentials
 
     def set_label(self, label, prefix):
-        """
-        set directory and prefix from label
-        """
+        """Set directory and prefix from label"""
         self.directory = label
         if not prefix:
             self.prefix = os.path.split(label)[1]
@@ -171,7 +169,7 @@ class Espresso(FileIOCalculator):
         logger.debug("Prefix: %s" % (self.prefix))
 
     def check_pseudopotentials(self, pseudopotentials):
-        """ """
+        """check pseudopotentials"""
         # pseudopotentials
         if "species" not in self.atoms.arrays:
             all_species = set(self.atoms.get_chemical_symbols())
@@ -233,8 +231,9 @@ class Espresso(FileIOCalculator):
     def set(self, **kwargs):
         """ """
         from xespresso.input_parameters import restart_ignore
+        from xespresso.utils import compare_parameters
 
-        self.changed_parameters, self.igonre_parameters = self.compare_parameters(
+        self.changed_parameters, self.igonre_parameters = compare_parameters(
             self.restart_parameters, self.ase_parameters, ignore=restart_ignore["PW"]
         )
         self.parameters = kwargs
@@ -281,95 +280,8 @@ class Espresso(FileIOCalculator):
             return True
         return False
 
-    def compare_parameters(self, para1, para2, ignore=[]):
-        """ """
-        from xespresso.input_parameters import (
-            qe_namespace,
-            default_parameters,
-            restart_ignore,
-        )
-
-        changed_parameters = []
-        igonre_parameters = []
-        if not para1:
-            changed_parameters = ["all"]
-            return changed_parameters, igonre_parameters
-        default_parameters = default_parameters["PW"]
-        # pseudopotentials
-        key = "pseudopotentials"
-        try:
-            for species, value in para1[key].items():
-                if value != para2[key][species]:
-                    changed_parameters.append(key)
-                    continue
-        except:
-            changed_parameters.append(key)
-        # kpts
-        key = "kpts"
-        try:
-            if para1[key] != para2[key]:
-                changed_parameters.append(key)
-        except:
-            changed_parameters.append(key)
-        # input_data
-        for section, paras in para1["input_data"].items():
-            if section == "INPUT_NTYP":
-                changed_parameters1, igonre_parameters1 = self.compare_dict(
-                    para1["input_data"][section],
-                    para2["input_data"][section],
-                    restart_ignore["PW"],
-                )
-            else:
-                changed_parameters1, igonre_parameters1 = self.compare_dict(
-                    para1["input_data"][section],
-                    para2["input_data"][section],
-                    restart_ignore["PW"],
-                    default=default_parameters[section],
-                )
-            changed_parameters.extend(changed_parameters1)
-            igonre_parameters.extend(igonre_parameters1)
-        return changed_parameters, igonre_parameters
-
-    def compare_dict(self, dict1, dict2, ignore=[], default=None):
-        igonre_parameters = []
-        changed_parameters = []
-        keys = set(list(dict1.keys()) + list(dict2.keys()))
-        print
-        for key in keys:
-            if key in ignore:
-                igonre_parameters.append(key)
-            elif key not in dict1:
-                changed_parameters.append(key)
-            elif key not in dict2:
-                if default and self.compare_value(dict1[key], default[key]):
-                    continue
-                changed_parameters.append(key)
-            elif not self.compare_value(dict1[key], dict2[key]):
-                changed_parameters.append(key)
-        return changed_parameters, igonre_parameters
-
-    def compare_value(self, v1, v2, tol=1e-5):
-        """ """
-        if isinstance(v1, str):
-            if v1.upper() != v2.upper():
-                return False
-        elif isinstance(v1, dict):
-            changed_parameters, igonre_parameters = self.compare_dict(v1, v2)
-            if changed_parameters:
-                return False
-            for key, value in v1.items():
-                if not self.compare_value(value, v2[key]):
-                    return False
-        elif isinstance(v1, bool):
-            if v1 != v2:
-                return False
-        else:
-            if abs(v1 - v2) > tol:
-                return False
-        return True
-
     def read_results(self):
-        """
+        """Read PW results.
         get atomic species
         """
         pwo = os.path.join(self.directory, "%s.pwo" % self.prefix)
@@ -399,6 +311,7 @@ class Espresso(FileIOCalculator):
         except Exception as e:
             logger.debug("Read output: %s, failed! %s" % (pwo, e))
         self.results["convergence"] = convergence
+        self.results["label"] = self.label
         # logger.debug('Read result failed!')
         # pwos = [file for file in os.listdir(self.directory) if pwo in file]
         # output = None
@@ -467,7 +380,7 @@ class Espresso(FileIOCalculator):
     def read_convergence(self):
         """
         Read the status of the calculation.
-        {
+        exit code:
         '0': 'Done',
         '-1': ' manual cancelled',
         '1': 'Maximum CPU time exceeded', convergence NOT achieved after n iterations
@@ -475,7 +388,6 @@ class Espresso(FileIOCalculator):
         '2': 'manual restart', 'Pending or not submit',
         '3': 'other errors',
         '4': 'unknow error',
-        }
         """
         # read the error file from queue
         # if self.queue:
@@ -661,7 +573,11 @@ class Espresso(FileIOCalculator):
         return ax
 
     def get_work_function(
-        self, ax=None, inpfile="potential.cube", output=None, shift=False
+        self,
+        ax=None,
+        inpfile="potential.cube",
+        output=None,
+        shift=False,
     ):
         import matplotlib.pyplot as plt
         from ase.io.cube import read_cube_data
@@ -673,7 +589,7 @@ class Espresso(FileIOCalculator):
             ax = plt.gca()
         units = create_units("2006")
         #
-        filename = os.path.join(self.directory, inpfile)
+        filename = os.path.join(self.directory, "pp", inpfile)
         data, atoms = read_cube_data(filename)
         data = data * units["Ry"]
         ef = self.get_fermi_level()
@@ -700,6 +616,7 @@ class Espresso(FileIOCalculator):
         wf = np.average(axy[ind]) - ef
         print("min: %s, max: %s" % (pos, pos + 3))
         print("The workfunction is {0:1.2f} eV".format(wf))
+        return wf
 
     def get_bader_charge(self, inpfile=None):
         """ """
@@ -710,7 +627,9 @@ class Espresso(FileIOCalculator):
         command = "bader %s" % inpfile
         print(command)
         try:
-            proc = subprocess.Popen(command, shell=True, cwd=self.directory)
+            proc = subprocess.Popen(
+                command, shell=True, cwd=os.path.join(self.directory, "pp")
+            )
         except OSError as err:
             msg = 'Failed to execute "{}"'.format(command)
             raise EnvironmentError(msg) from err

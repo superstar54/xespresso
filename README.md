@@ -6,11 +6,13 @@ Quantum ESPRESSO Calculator for Atomic Simulation Environment (ASE).
 For the introduction of ASE , please visit https://wiki.fysik.dtu.dk/ase/index.html
 
 
-### Functions:
+### Features
+
 * Support all QE packages, including: pw, band, neb, dos, projwfc, pp ...
 * Spin-polarized calculation
 * LD(S)A+U
 * Automatic submit job
+* Automatic check a new calculation required or not
 * Automatic set up "nscf" calculation
 * Read and plot dos, pdos and layer resolved pdos
 * Plot NEB
@@ -62,7 +64,7 @@ calc = Espresso(queue = queue)
 
 #### Automatic check a new calculation required or not
 
-Before the calculation, first check the working directory. If the same geometry and parameters are used, try to check the results are available or not. Automatic check input parameters with Quantum Espresso document.
+Before the calculation, it will first check the working directory. If the same geometry and parameters are used, try to check whether the results are available or not. Automatic check input parameters with Quantum Espresso document.
 
 ``` python
 calc = Espresso(label = 'scf/fe')
@@ -155,8 +157,15 @@ projwfc.run()
 
 #### Calculate work function
 ``` python
-calc.post(queue = queue, package = 'pp', plot_num = 11, fileout = 'potential.cube', iflag = 3, output_format=6)
-calc.get_work_function()
+from xespresso.post.pp import EspressoPp
+pp = EspressoPp(calc.directory, prefix = calc.prefix,
+                plot_num = 11,
+                fileout = 'potential.cube',
+                iflag = 3,
+                output_format=6,
+                debug = True,
+                )
+pp.get_work_function()
 ```
 
 #### Restart from previous calculation

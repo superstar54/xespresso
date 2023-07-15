@@ -4,7 +4,7 @@ from xespresso.post.base import PostCalculation
 class EspressoPp(PostCalculation):
 
     package = "pp"
-    state_parameters = {
+    package_parameters = {
         "INPUTPP": [
             "prefix",
             "outdir",
