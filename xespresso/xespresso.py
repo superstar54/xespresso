@@ -311,6 +311,7 @@ class Espresso(FileIOCalculator):
         except Exception as e:
             logger.debug("Read output: %s, failed! %s" % (pwo, e))
         self.results["convergence"] = convergence
+        self.results["label"] = self.label
         # logger.debug('Read result failed!')
         # pwos = [file for file in os.listdir(self.directory) if pwo in file]
         # output = None
